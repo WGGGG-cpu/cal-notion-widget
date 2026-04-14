@@ -1171,9 +1171,6 @@
       </div>
       <div class="field"><label>場所</label><input type="text" id="fLocation" placeholder="場所（任意）"></div>
       <div class="field"><label>メモ</label><textarea id="fDesc" placeholder="メモ（任意）"></textarea></div>
-      <div class="field"><label>カラー</label>
-        <div class="color-picker" id="colorPicker"></div>
-      </div>
       <div class="modal-actions">
         <button class="modal-btn danger delete-left" id="btnDelete" style="display:none"
           onclick="doDelete()">削除</button>
@@ -1739,7 +1736,7 @@
       }
       var loc = document.getElementById('fLocation').value; if (loc) body.location = loc;
       var desc = document.getElementById('fDesc').value; if (desc) body.description = desc;
-      if (selectedColor && selectedColor !== '0') body.colorId = selectedColor;
+
 
       var calId = document.getElementById('fCalendar').value || 'primary';
       var url, method;
