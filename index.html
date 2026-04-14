@@ -1121,11 +1121,11 @@
       <div style="font-size:13px;color:#999;margin-bottom:10px;">ブラウザで認証を完了しましたか？</div>
       <button onclick="location.reload()" style="padding:10px 24px;border:1px solid #555;border-radius:8px;background:#272727;color:#e8e8e8;font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;">🔄 リロードしてログイン</button>
     </div>
-    <div style="margin-top:20px;text-align:center;">
-      <div onclick="document.getElementById('tokenInput').style.display='flex'" style="font-size:12px;color:#666;cursor:pointer;text-decoration:underline;">トークンを貼り付け</div>
-      <div id="tokenInput" style="display:none;margin-top:10px;gap:8px;justify-content:center;align-items:center;">
-        <input type="text" id="fToken" placeholder="トークンを貼り付け" style="padding:8px 10px;border:1px solid #333;border-radius:6px;background:#212121;color:#e8e8e8;font-size:13px;width:180px;font-family:'Noto Sans JP',sans-serif;">
-        <button onclick="doTokenPaste()" style="padding:8px 14px;border:none;border-radius:6px;background:#4b7cf3;color:#fff;font-size:13px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">ログイン</button>
+    <div id="emailLogin" style="display:none;margin-top:20px;text-align:center;">
+      <div style="font-size:13px;color:#999;margin-bottom:8px;">ブラウザで認証済みの場合:</div>
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
+        <input type="email" id="fEmail" placeholder="Googleメールアドレス" style="padding:8px 10px;border:1px solid #333;border-radius:6px;background:#212121;color:#e8e8e8;font-size:13px;width:200px;font-family:'Noto Sans JP',sans-serif;">
+        <button onclick="doEmailLogin()" style="padding:8px 14px;border:none;border-radius:6px;background:#4b7cf3;color:#fff;font-size:13px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">ログイン</button>
       </div>
     </div>
   </div>
@@ -1325,6 +1325,9 @@
         return;
       }
 
+      // Show email login if GAS is configured
+      if (GAS_URL) { var el = document.getElementById('emailLogin'); if (el) el.style.display = ''; }
+
       // Init GIS as fallback (for browsers without GAS)
       if (typeof google !== 'undefined' && google.accounts) {
         tokenClient = google.accounts.oauth2.initTokenClient({
@@ -1363,16 +1366,17 @@
       }).catch(function () { prompt('トークンをコピーしてください:', accessToken); });
     }
 
-    function doTokenPaste() {
-      var t = document.getElementById('fToken').value.trim();
-      if (!t) { toast('トークンを貼り付けてください', true); return; }
-      accessToken = t;
-      hasFullCalScope = true;
-      // Get email for refresh token support
-      apiFetch('https://www.googleapis.com/oauth2/v2/userinfo').then(function (u) {
-        saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600, u.email || '');
-      }).catch(function () { saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600, ''); });
-      onLoggedIn();
+    function doEmailLogin() {
+      var email = document.getElementById('fEmail').value.trim();
+      if (!email) { toast('メールアドレスを入力してください', true); return; }
+      if (!GAS_URL) { toast('GAS URLが設定されていません', true); return; }
+      toast('ログイン中...');
+      userEmail = email;
+      refreshViaGAS().then(function () {
+        onLoggedIn();
+      }).catch(function (e) {
+        toast('ログイン失敗: ' + (e.message || e) + '。先にブラウザで認証してください。', true);
+      });
     }
 
     function onToken(resp) {
