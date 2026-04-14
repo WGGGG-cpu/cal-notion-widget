@@ -249,11 +249,17 @@
 
     /* Grid */
     .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      display: flex;
+      flex-direction: column;
       gap: var(--grid-gap);
       flex: 1;
       min-height: 0;
+    }
+
+    .dow-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--grid-gap);
     }
 
     .dow {
@@ -271,6 +277,69 @@
 
     .dow.sun {
       color: #cc5555;
+    }
+
+    .week-row {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .multi-lanes {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px var(--grid-gap);
+      grid-auto-rows: 22px;
+      padding-bottom: 2px;
+    }
+
+    .multi-bar {
+      height: 20px;
+      font-size: 11px;
+      line-height: 20px;
+      padding: 0 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      font-weight: 600;
+      color: #fff;
+      border-radius: 0;
+      transition: opacity 0.12s;
+    }
+
+    .multi-bar:hover {
+      opacity: 0.75;
+    }
+
+    .multi-bar.start {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .multi-bar.end {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    .multi-bar.ec0, .multi-bar.ec1 { background: #4b7cf3; }
+    .multi-bar.ec2 { background: #23a55a; }
+    .multi-bar.ec3 { background: #9b59b6; }
+    .multi-bar.ec4 { background: #e84057; }
+    .multi-bar.ec5 { background: #d4a017; }
+    .multi-bar.ec6 { background: #e67e22; }
+    .multi-bar.ec7 { background: #00a0c0; }
+    .multi-bar.ec8 { background: #777; }
+    .multi-bar.ec9 { background: #3f51b5; }
+    .multi-bar.ec10 { background: #0b8043; }
+    .multi-bar.ec11 { background: #e84393; }
+
+    .week-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--grid-gap);
+      flex: 1;
     }
 
     .day-cell {
@@ -805,6 +874,17 @@
         padding: 2px 4px;
       }
 
+      .multi-lanes {
+        grid-auto-rows: 18px;
+      }
+
+      .multi-bar {
+        height: 16px;
+        font-size: 10px;
+        line-height: 16px;
+        padding: 0 4px;
+      }
+
       .modal {
         padding: 18px;
       }
@@ -853,6 +933,22 @@
 
       .btn-add span.label {
         display: none;
+      }
+
+      .btn-cal-list span.label {
+        display: none;
+      }
+
+      .multi-lanes {
+        grid-auto-rows: 16px;
+        gap: 1px var(--grid-gap);
+      }
+
+      .multi-bar {
+        height: 14px;
+        font-size: 9px;
+        line-height: 14px;
+        padding: 0 3px;
       }
     }
 
@@ -1238,67 +1334,160 @@
     function render(events) {
       var grid = document.getElementById('calGrid');
       grid.innerHTML = '';
+
+      // DOW header
+      var dowRow = document.createElement('div');
+      dowRow.className = 'dow-row';
       DOW.forEach(function (d, i) {
         var el = document.createElement('div');
         el.className = 'dow' + (i === 5 ? ' sat' : '') + (i === 6 ? ' sun' : '');
-        el.textContent = d; grid.appendChild(el);
+        el.textContent = d; dowRow.appendChild(el);
       });
+      grid.appendChild(dowRow);
 
       var first = new Date(curYear, curMonth, 1), last = new Date(curYear, curMonth + 1, 0);
-      var dim = last.getDate(), sd = first.getDay(); sd = sd === 0 ? 6 : sd - 1;
+      var dim = last.getDate(), startOff = first.getDay(); startOff = startOff === 0 ? 6 : startOff - 1;
       var now = new Date(), tk = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+      var cw = grid.clientWidth;
 
-      var de = {};
+      // Classify events: spanning (allDay or multi-day) vs single-day timed
+      var spanning = [], singleMap = {};
       events.forEach(function (ev) {
         var s = new Date(ev.start), e = new Date(ev.end);
-        var sd2 = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-        var ed2 = new Date(e.getFullYear(), e.getMonth(), e.getDate());
-        if (ev.allDay || ed2 > sd2) {
-          var d = new Date(sd2);
-          var limit = ev.allDay ? e : new Date(ed2.getTime() + 86400000);
-          while (d < limit) { var k = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); d.setDate(d.getDate() + 1); }
+        var sDay = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+        var eDay = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        if (ev.allDay) {
+          var inclEnd = new Date(e.getTime() - 86400000);
+          spanning.push({ ev: ev, sDay: sDay, eDay: inclEnd < sDay ? sDay : inclEnd });
+        } else if (eDay > sDay) {
+          spanning.push({ ev: ev, sDay: sDay, eDay: eDay });
         } else {
-          var k = s.getFullYear() + '-' + s.getMonth() + '-' + s.getDate(); if (!de[k]) de[k] = []; de[k].push(ev);
+          var k = sDay.getFullYear() + '-' + sDay.getMonth() + '-' + sDay.getDate();
+          if (!singleMap[k]) singleMap[k] = [];
+          singleMap[k].push(ev);
         }
       });
 
-      var cw = grid.clientWidth, dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
+      // Sort spanning: earlier start, then longer duration first
+      spanning.sort(function (a, b) {
+        if (a.sDay < b.sDay) return -1;
+        if (a.sDay > b.sDay) return 1;
+        return (b.eDay - b.sDay) - (a.eDay - a.sDay);
+      });
 
-      for (var i = 0; i < 42; i++) {
-        var dn = i - sd + 1, cd = new Date(curYear, curMonth, dn), out = dn < 1 || dn > dim;
-        var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk, di = i % 7;
-        var cell = document.createElement('div');
-        cell.className = 'day-cell' + (out ? ' outside' : '') + (isT ? ' today' : '');
-        (function (date, isOut) {
-          cell.addEventListener('click', function (e) {
-            if (isOut) return; if (e.target.classList.contains('ev-pill') || e.target.closest('.ev-pill')) return;
-            if (e.target.classList.contains('ev-dot')) return; openCreate(date);
-          });
-        })(new Date(cd), out);
-        var num = document.createElement('div');
-        num.className = 'day-num' + (di === 5 ? ' sat' : '') + (di === 6 ? ' sun' : '');
-        num.textContent = cd.getDate(); cell.appendChild(num);
-        var evs = (de[dk] || []).sort(function (a, b) { if (a.allDay && !b.allDay) return -1; if (!a.allDay && b.allDay) return 1; return new Date(a.start) - new Date(b.start); });
-        if (evs.length > 0) {
-          var cont = document.createElement('div'); cont.className = 'ev-list';
-          evs.slice(0, dm).forEach(function (ev) {
-            var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0') + (ev.allDay ? ' allday' : '');
-            if (!ev.allDay) { var t = document.createElement('span'); t.className = 'ev-time'; var st = new Date(ev.start); t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0'); pill.appendChild(t); }
-            pill.appendChild(document.createTextNode(ev.title || '(無題)'));
-            (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
-            cont.appendChild(pill);
-          });
-          if (evs.length > dm && dm > 0) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (evs.length - dm) + ' 件'; cont.appendChild(m); }
-          cell.appendChild(cont);
-          var dots = document.createElement('div'); dots.className = 'ev-dots';
-          evs.slice(0, 5).forEach(function (ev) {
-            var dot = document.createElement('div'); dot.className = 'ev-dot dot-' + (ev.color || '0'); dot.title = ev.title;
-            (function (d) { dot.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
-            dots.appendChild(dot);
-          });
-          cell.appendChild(dots);
+      // Global lane assignment (prevents overlap)
+      var lanes = [];
+      spanning.forEach(function (sp) {
+        var assigned = -1;
+        for (var l = 0; l < lanes.length; l++) {
+          var free = true;
+          for (var j = 0; j < lanes[l].length; j++) {
+            if (sp.sDay <= lanes[l][j].eDay && sp.eDay >= lanes[l][j].sDay) { free = false; break; }
+          }
+          if (free) { assigned = l; break; }
         }
-        grid.appendChild(cell);
+        if (assigned === -1) { assigned = lanes.length; lanes.push([]); }
+        lanes[assigned].push({ sDay: sp.sDay, eDay: sp.eDay });
+        sp.lane = assigned;
+      });
+
+      var maxLanes = cw < 380 ? 1 : (cw < 500 ? 2 : 3);
+
+      // Build 6 week rows
+      for (var w = 0; w < 6; w++) {
+        var weekRow = document.createElement('div');
+        weekRow.className = 'week-row';
+        var wDates = [];
+        for (var d = 0; d < 7; d++) wDates.push(new Date(curYear, curMonth, w * 7 + d - startOff + 1));
+        var wStart = new Date(wDates[0].getFullYear(), wDates[0].getMonth(), wDates[0].getDate());
+        var wEnd = new Date(wDates[6].getFullYear(), wDates[6].getMonth(), wDates[6].getDate());
+
+        // Spanning bars for this week
+        var weekSpans = spanning.filter(function (sp) { return sp.sDay <= wEnd && sp.eDay >= wStart; });
+        var visSpans = weekSpans.filter(function (sp) { return sp.lane < maxLanes; });
+
+        if (visSpans.length > 0) {
+          // Compact lanes: remove empty rows
+          var usedLanes = [];
+          visSpans.forEach(function (sp) { if (usedLanes.indexOf(sp.lane) === -1) usedLanes.push(sp.lane); });
+          usedLanes.sort(function (a, b) { return a - b; });
+          var laneMap = {};
+          usedLanes.forEach(function (l, i) { laneMap[l] = i + 1; });
+
+          var ml = document.createElement('div');
+          ml.className = 'multi-lanes';
+          visSpans.forEach(function (sp) {
+            var colStart = -1, colEnd = -1;
+            for (var d = 0; d < 7; d++) {
+              var dd = new Date(wDates[d].getFullYear(), wDates[d].getMonth(), wDates[d].getDate());
+              if (dd >= sp.sDay && dd <= sp.eDay) { if (colStart === -1) colStart = d; colEnd = d; }
+            }
+            if (colStart === -1) return;
+            var bar = document.createElement('div');
+            bar.className = 'multi-bar ec' + (sp.ev.color || '0');
+            bar.style.gridColumn = (colStart + 1) + ' / ' + (colEnd + 2);
+            bar.style.gridRow = String(laneMap[sp.lane]);
+            var isS = sp.sDay >= wStart, isE = sp.eDay <= wEnd;
+            if (isS) bar.classList.add('start');
+            if (isE) bar.classList.add('end');
+            bar.textContent = sp.ev.title || '(無題)';
+            bar.title = sp.ev.title + (sp.ev.location ? ' — ' + sp.ev.location : '');
+            (function (ev) { bar.addEventListener('click', function (e) { e.stopPropagation(); openEdit(ev); }); })(sp.ev);
+            ml.appendChild(bar);
+          });
+          weekRow.appendChild(ml);
+        }
+
+        // Day cells
+        var wd = document.createElement('div');
+        wd.className = 'week-days';
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk;
+          var cell = document.createElement('div');
+          cell.className = 'day-cell' + (out ? ' outside' : '') + (isT ? ' today' : '');
+          (function (date, isOut) {
+            cell.addEventListener('click', function (e) {
+              if (isOut) return;
+              if (e.target.classList.contains('ev-pill') || e.target.closest('.ev-pill')) return;
+              if (e.target.classList.contains('ev-dot')) return;
+              openCreate(date);
+            });
+          })(new Date(cd), out);
+          var num = document.createElement('div');
+          num.className = 'day-num' + (d === 5 ? ' sat' : '') + (d === 6 ? ' sun' : '');
+          num.textContent = cd.getDate(); cell.appendChild(num);
+
+          var dayEvs = (singleMap[dk] || []).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+          if (dayEvs.length > 0) {
+            var dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
+            if (dm > 0) {
+              var cont = document.createElement('div'); cont.className = 'ev-list';
+              dayEvs.slice(0, dm).forEach(function (ev) {
+                var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+                var st = new Date(ev.start);
+                var t = document.createElement('span'); t.className = 'ev-time';
+                t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
+                pill.appendChild(t);
+                pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+                (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+                cont.appendChild(pill);
+              });
+              if (dayEvs.length > dm) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (dayEvs.length - dm) + ' 件'; cont.appendChild(m); }
+              cell.appendChild(cont);
+            }
+            var dots = document.createElement('div'); dots.className = 'ev-dots';
+            dayEvs.slice(0, 5).forEach(function (ev) {
+              var dot = document.createElement('div'); dot.className = 'ev-dot dot-' + (ev.color || '0'); dot.title = ev.title;
+              (function (d) { dot.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+              dots.appendChild(dot);
+            });
+            cell.appendChild(dots);
+          }
+          wd.appendChild(cell);
+        }
+        weekRow.appendChild(wd);
+        grid.appendChild(weekRow);
       }
     }
 
