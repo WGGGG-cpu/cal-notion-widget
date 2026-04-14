@@ -1209,6 +1209,7 @@
     //  AUTH (client-only)
     // ════════════════════
     var hasFullCalScope = false;
+    var loginAttempt = 0;
 
     function initGIS() {
       if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 200); return; }
@@ -1217,6 +1218,9 @@
         scope: SCOPES,
         include_granted_scopes: true,
         callback: onToken,
+        error_callback: function (err) {
+          toast('認証エラー: ' + (err.message || err.type || 'ポップアップがブロックされました'), true);
+        },
       });
       var t = sessionStorage.getItem('cal_token');
       var s = sessionStorage.getItem('cal_scope');
@@ -1229,7 +1233,10 @@
 
     function doLogin() {
       if (!tokenClient) { toast('認証の準備中...', true); return; }
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      loginAttempt++;
+      // First attempt: skip consent if already granted. Second+: force consent.
+      var p = loginAttempt <= 1 ? '' : 'consent';
+      tokenClient.requestAccessToken({ prompt: p });
     }
 
     function onToken(resp) {
@@ -1239,6 +1246,7 @@
       hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
       sessionStorage.setItem('cal_token', accessToken);
       sessionStorage.setItem('cal_scope', granted);
+      loginAttempt = 0;
       onLoggedIn();
     }
 
