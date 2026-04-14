@@ -1391,10 +1391,17 @@
 
     function refreshViaGAS() {
       if (!GAS_URL || !userEmail) return Promise.reject('no GAS or email');
-      return fetch(GAS_URL + '?action=refresh&email=' + encodeURIComponent(userEmail))
-        .then(function (r) { return r.json(); })
+      var url = GAS_URL + '?action=refresh&email=' + encodeURIComponent(userEmail);
+      return fetch(url, { redirect: 'follow' })
+        .then(function (r) {
+          return r.text().then(function (txt) {
+            try { return JSON.parse(txt); }
+            catch (e) { throw new Error('GAS応答解析失敗: ' + txt.substring(0, 100)); }
+          });
+        })
         .then(function (data) {
           if (data.error) throw new Error(data.error);
+          if (!data.access_token) throw new Error('access_tokenが返されませんでした');
           accessToken = data.access_token;
           hasFullCalScope = true;
           saveToken(accessToken, 'https://www.googleapis.com/auth/calendar', data.expires_in || 3600, userEmail);
