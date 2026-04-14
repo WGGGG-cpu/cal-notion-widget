@@ -856,6 +856,24 @@
       }
     }
 
+    /* Calendar select in modal */
+    #fCalendar {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Noto Sans JP', sans-serif;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #fCalendar:focus {
+      border-color: var(--accent);
+    }
+
     /* Calendar list panel */
     .btn-cal-list {
       padding: 0 14px;
@@ -1034,6 +1052,7 @@
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
       <div class="field"><label>タイトル</label><input type="text" id="fTitle" placeholder="予定のタイトル"></div>
+      <div class="field" id="fCalendarField"><label>カレンダー</label><select id="fCalendar"></select></div>
       <div class="check-row" onclick="toggleAllDay()"><input type="checkbox" id="fAllDay"><span>終日</span></div>
       <div id="dateTimeFields">
         <div class="field-row">
@@ -1232,8 +1251,15 @@
       var de = {};
       events.forEach(function (ev) {
         var s = new Date(ev.start), e = new Date(ev.end);
-        if (ev.allDay) { var d = new Date(s); while (d < e) { var k = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); d.setDate(d.getDate() + 1); } }
-        else { var k = s.getFullYear() + '-' + s.getMonth() + '-' + s.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); }
+        var sd2 = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+        var ed2 = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        if (ev.allDay || ed2 > sd2) {
+          var d = new Date(sd2);
+          var limit = ev.allDay ? e : new Date(ed2.getTime() + 86400000);
+          while (d < limit) { var k = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); d.setDate(d.getDate() + 1); }
+        } else {
+          var k = s.getFullYear() + '-' + s.getMonth() + '-' + s.getDate(); if (!de[k]) de[k] = []; de[k].push(ev);
+        }
       });
 
       var cw = grid.clientWidth, dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
@@ -1300,6 +1326,18 @@
     // ════════════════════
     //  MODAL
     // ════════════════════
+    function buildCalendarSelect(selectedId) {
+      var sel = document.getElementById('fCalendar');
+      sel.innerHTML = '';
+      var writable = calendarList.filter(function (c) { return c.accessRole === 'owner' || c.accessRole === 'writer'; });
+      writable.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.summary;
+        if (c.id === selectedId || (!selectedId && c.primary)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
     function openCreate(date) {
       editingEvent = null;
       document.getElementById('modalTitleText').textContent = '新規予定';
@@ -1307,6 +1345,8 @@
       document.getElementById('btnSave').textContent = '作成';
       document.getElementById('fTitle').value = ''; document.getElementById('fLocation').value = ''; document.getElementById('fDesc').value = '';
       document.getElementById('fAllDay').checked = false; toggleAllDayUI(false); setActiveColor('1');
+      buildCalendarSelect(null);
+      document.getElementById('fCalendarField').style.display = '';
       var d = date || new Date(), ds = fmtDate(d);
       document.getElementById('fStart').value = ds + 'T09:00'; document.getElementById('fEnd').value = ds + 'T10:00';
       document.getElementById('fStartDate').value = ds; document.getElementById('fEndDate').value = ds;
@@ -1322,6 +1362,8 @@
       document.getElementById('fTitle').value = ev.title || ''; document.getElementById('fLocation').value = ev.location || '';
       document.getElementById('fDesc').value = ev.description || '';
       document.getElementById('fAllDay').checked = ev.allDay; toggleAllDayUI(ev.allDay); setActiveColor(ev.color);
+      buildCalendarSelect(ev.calendarId);
+      document.getElementById('fCalendarField').style.display = '';
       if (ev.allDay) { var s = new Date(ev.start), e = new Date(ev.end); e.setDate(e.getDate() - 1); document.getElementById('fStartDate').value = fmtDate(s); document.getElementById('fEndDate').value = fmtDate(e); }
       else { document.getElementById('fStart').value = fmtDT(new Date(ev.start)); document.getElementById('fEnd').value = fmtDT(new Date(ev.end)); }
       document.getElementById('modalOverlay').classList.add('show');
@@ -1356,12 +1398,13 @@
       var desc = document.getElementById('fDesc').value; if (desc) body.description = desc;
       if (selectedColor && selectedColor !== '0') body.colorId = selectedColor;
 
+      var calId = document.getElementById('fCalendar').value || 'primary';
       var url, method;
       if (editingEvent) {
-        url = API + '/calendars/primary/events/' + encodeURIComponent(editingEvent.id);
+        url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || calId) + '/events/' + encodeURIComponent(editingEvent.id);
         method = 'PATCH';
       } else {
-        url = API + '/calendars/primary/events';
+        url = API + '/calendars/' + encodeURIComponent(calId) + '/events';
         method = 'POST';
       }
 
@@ -1380,7 +1423,7 @@
       if (!editingEvent) return;
       if (!confirm('この予定を削除しますか？')) return;
       var btn = document.getElementById('btnDelete'); btn.disabled = true; btn.textContent = '削除中...';
-      var url = API + '/calendars/primary/events/' + encodeURIComponent(editingEvent.id);
+      var url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || 'primary') + '/events/' + encodeURIComponent(editingEvent.id);
       apiFetch(url, { method: 'DELETE' })
         .then(function () { btn.disabled = false; btn.textContent = '削除'; toast('予定を削除しました'); cache = {}; closeModal(); loadMonth(); })
         .catch(function () { btn.disabled = false; btn.textContent = '削除'; toast('エラーが発生しました', true); });
