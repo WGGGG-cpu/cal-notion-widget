@@ -26,10 +26,10 @@
       --radius: 10px;
       --radius-sm: 6px;
       --cell-min-h: 80px;
-      --header-fs: 22px;
-      --day-fs: 13px;
-      --ev-fs: 12px;
-      --ev-time-fs: 10px;
+      --header-fs: 26px;
+      --day-fs: 15px;
+      --ev-fs: 14px;
+      --ev-time-fs: 12px;
       --widget-pad: 20px;
       --grid-gap: 3px;
       --cell-pad: 5px 6px;
@@ -47,7 +47,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Noto Sans JP', sans-serif;
-      font-size: 14px;
+      font-size: 17px;
       line-height: 1.5;
       overflow-x: hidden;
       overflow-y: auto;
@@ -345,15 +345,15 @@
     }
 
     .multi-bar {
-      height: 20px;
-      font-size: 11px;
-      line-height: 20px;
-      padding: 0 6px;
+      height: 24px;
+      font-size: 13px;
+      line-height: 24px;
+      padding: 0 8px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 700;
       color: #fff;
       border-radius: 0;
       transition: opacity 0.12s;
@@ -838,10 +838,10 @@
     @media(max-width:500px) {
       :root {
         --cell-min-h: 52px;
-        --header-fs: 18px;
-        --day-fs: 11px;
-        --ev-fs: 10px;
-        --ev-time-fs: 9px;
+        --header-fs: 22px;
+        --day-fs: 13px;
+        --ev-fs: 12px;
+        --ev-time-fs: 11px;
         --widget-pad: 12px;
         --grid-gap: 2px;
         --cell-pad: 3px 4px;
@@ -876,10 +876,10 @@
       }
 
       .multi-bar {
-        height: 16px;
-        font-size: 10px;
-        line-height: 16px;
-        padding: 0 4px;
+        height: 20px;
+        font-size: 12px;
+        line-height: 20px;
+        padding: 0 5px;
       }
 
       .modal {
@@ -905,8 +905,8 @@
     @media(max-width:380px) {
       :root {
         --cell-min-h: 44px;
-        --header-fs: 16px;
-        --day-fs: 10px;
+        --header-fs: 19px;
+        --day-fs: 12px;
         --widget-pad: 8px;
         --cell-pad: 2px 3px;
         --day-size: 20px;
@@ -937,10 +937,10 @@
       }
 
       .multi-bar {
-        height: 14px;
-        font-size: 9px;
-        line-height: 14px;
-        padding: 0 3px;
+        height: 18px;
+        font-size: 11px;
+        line-height: 18px;
+        padding: 0 4px;
       }
     }
 
@@ -1600,19 +1600,31 @@
       var calId = document.getElementById('fCalendar').value || 'primary';
       var url, method;
       if (editingEvent) {
-        url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || calId) + '/events/' + encodeURIComponent(editingEvent.id);
-        method = 'PATCH';
+        var oldCalId = editingEvent.calendarId || 'primary';
+        var calChanged = calId !== oldCalId;
+
+        // If calendar changed, move first then patch
+        var movePromise = calChanged
+          ? apiFetch(API + '/calendars/' + encodeURIComponent(oldCalId) + '/events/' + encodeURIComponent(editingEvent.id) + '/move?destination=' + encodeURIComponent(calId), { method: 'POST' })
+          : Promise.resolve(null);
+
+        movePromise.then(function () {
+          var patchCal = calChanged ? calId : oldCalId;
+          return apiFetch(API + '/calendars/' + encodeURIComponent(patchCal) + '/events/' + encodeURIComponent(editingEvent.id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        }).then(function () {
+          btn.disabled = false; btn.textContent = orig;
+          toast('予定を更新しました'); cache = {}; closeModal(); loadMonth();
+        }).catch(function (e) { btn.disabled = false; btn.textContent = orig; toast('保存失敗: ' + e.message, true); });
       } else {
         url = API + '/calendars/' + encodeURIComponent(calId) + '/events';
         method = 'POST';
+        apiFetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+          .then(function () {
+            btn.disabled = false; btn.textContent = orig;
+            toast('予定を作成しました'); cache = {}; closeModal(); loadMonth();
+          })
+          .catch(function (e) { btn.disabled = false; btn.textContent = orig; toast('保存失敗: ' + e.message, true); });
       }
-
-      apiFetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-        .then(function (res) {
-          btn.disabled = false; btn.textContent = orig;
-          toast(editingEvent ? '予定を更新しました' : '予定を作成しました'); cache = {}; closeModal(); loadMonth();
-        })
-        .catch(function (e) { btn.disabled = false; btn.textContent = orig; toast('保存失敗: ' + e.message, true); });
     }
 
     // ════════════════════
