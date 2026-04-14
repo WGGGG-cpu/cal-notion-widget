@@ -1711,7 +1711,7 @@
       else { document.getElementById('fStart').value = fmtDT(new Date(ev.start)); document.getElementById('fEnd').value = fmtDT(new Date(ev.end)); }
       document.getElementById('modalOverlay').classList.add('show');
     }
-    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; deleteConfirmed = false; }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; deleteConfirmed = false; var db = document.getElementById('btnDelete'); db.textContent = '削除'; db.disabled = false; }
     function toggleAllDay() { var cb = document.getElementById('fAllDay'); cb.checked = !cb.checked; toggleAllDayUI(cb.checked); }
     function toggleAllDayUI(v) { document.getElementById('dateTimeFields').style.display = v ? 'none' : ''; document.getElementById('allDayFields').style.display = v ? '' : 'none'; }
 
