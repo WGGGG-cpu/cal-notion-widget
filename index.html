@@ -356,6 +356,7 @@
       font-weight: 700;
       color: #ffffff;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      background: #4b7cf3;
       border-radius: 0;
       transition: opacity 0.12s;
       z-index: 2;
@@ -1364,6 +1365,7 @@
               start: ad ? ev.start.date + 'T00:00:00' : ev.start.dateTime,
               end: ad ? ev.end.date + 'T00:00:00' : ev.end.dateTime,
               allDay: ad, color: ev.colorId || (calMeta && calMeta.colorId) || '0',
+              bgColor: (calMeta && calMeta.bgColor) || '',
               location: ev.location || '',
               description: (ev.description || '').substring(0, 200),
               readOnly: calMeta ? calMeta.accessRole === 'reader' || calMeta.accessRole === 'freeBusyReader' : false
@@ -1503,6 +1505,7 @@
           if (colStart === -1) return;
           var bar = document.createElement('div');
           bar.className = 'multi-bar ec' + (sp.ev.color || '0');
+          if (sp.ev.bgColor) bar.style.backgroundColor = sp.ev.bgColor;
           bar.style.gridColumn = (colStart + 1) + ' / ' + (colEnd + 2);
           bar.style.gridRow = String(laneMap[sp.lane] + 2);
           var isS = sp.sDay >= wStart, isE = sp.eDay <= wEnd;
@@ -1529,6 +1532,7 @@
             if (dm > 0) {
               dayEvs.slice(0, dm).forEach(function (ev) {
                 var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+                if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
                 var st = new Date(ev.start);
                 var t = document.createElement('span'); t.className = 'ev-time';
                 t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
