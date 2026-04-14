@@ -1211,8 +1211,26 @@
     // ════════════════════
     var hasFullCalScope = false;
     var REDIRECT_URI = location.origin + location.pathname;
+    var inIframe = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
 
-    // Check for OAuth redirect token in URL hash (fallback flow)
+    function saveToken(token, scope) {
+      try { localStorage.setItem('cal_token', token); localStorage.setItem('cal_scope', scope); } catch (e) { }
+      try { sessionStorage.setItem('cal_token', token); sessionStorage.setItem('cal_scope', scope); } catch (e) { }
+    }
+
+    function loadToken() {
+      var t = null, s = '';
+      try { t = sessionStorage.getItem('cal_token'); s = sessionStorage.getItem('cal_scope') || ''; } catch (e) { }
+      if (!t) { try { t = localStorage.getItem('cal_token'); s = localStorage.getItem('cal_scope') || ''; } catch (e) { } }
+      return t ? { token: t, scope: s } : null;
+    }
+
+    function clearToken() {
+      try { localStorage.removeItem('cal_token'); localStorage.removeItem('cal_scope'); } catch (e) { }
+      try { sessionStorage.removeItem('cal_token'); sessionStorage.removeItem('cal_scope'); } catch (e) { }
+    }
+
+    // Check URL hash for OAuth redirect token
     function checkRedirectToken() {
       var hash = location.hash;
       if (!hash || hash.indexOf('access_token=') === -1) return false;
@@ -1225,56 +1243,77 @@
         accessToken = params.access_token;
         var sc = params.scope || '';
         hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
-        sessionStorage.setItem('cal_token', accessToken);
-        sessionStorage.setItem('cal_scope', sc);
-        history.replaceState(null, '', location.pathname); // clean URL
+        saveToken(accessToken, sc);
+        history.replaceState(null, '', location.pathname);
+        // If opened as auth callback, show completion message
+        if (inIframe === false && document.referrer === '') {
+          document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#191919;color:#e8e8e8;font-family:sans-serif;font-size:20px;text-align:center;padding:20px;">✅ 認証完了！<br>このタブを閉じてNotionに戻り、<br>カレンダーをリロードしてください。</div>';
+          return 'done';
+        }
         return true;
       }
       return false;
     }
 
-    function initGIS() {
-      // If returning from redirect auth, skip GIS init and go straight to logged in
-      if (checkRedirectToken()) { onLoggedIn(); return; }
-
-      if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 200); return; }
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        include_granted_scopes: true,
-        callback: onToken,
-        error_callback: function () {
-          // Popup failed (blocked or Notion desktop) → fallback to redirect flow
-          doRedirectLogin();
-        },
-      });
-      var t = sessionStorage.getItem('cal_token');
-      var s = sessionStorage.getItem('cal_scope');
-      if (t) {
-        accessToken = t;
-        hasFullCalScope = s ? s.indexOf('/auth/calendar ') !== -1 || s.endsWith('/auth/calendar') : false;
-        onLoggedIn();
-      }
-    }
-
-    function doLogin() {
-      if (tokenClient) {
-        // Try popup first
-        tokenClient.requestAccessToken({ prompt: '' });
-      } else {
-        // GIS not loaded → go direct to redirect
-        doRedirectLogin();
-      }
-    }
-
-    function doRedirectLogin() {
-      var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+    function buildAuthUrl() {
+      return 'https://accounts.google.com/o/oauth2/v2/auth'
         + '?client_id=' + encodeURIComponent(CLIENT_ID)
         + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
         + '&response_type=token'
         + '&scope=' + encodeURIComponent(SCOPES)
         + '&include_granted_scopes=true';
-      location.href = authUrl;
+    }
+
+    function initGIS() {
+      var redir = checkRedirectToken();
+      if (redir === 'done') return; // Auth callback page — stop here
+      if (redir === true) { onLoggedIn(); return; }
+
+      // Check saved token
+      var saved = loadToken();
+      if (saved) {
+        accessToken = saved.token;
+        hasFullCalScope = saved.scope.indexOf('/auth/calendar ') !== -1 || saved.scope.endsWith('/auth/calendar');
+        onLoggedIn();
+        return;
+      }
+
+      // Init GIS (if available — won't load in some iframe contexts)
+      if (typeof google !== 'undefined' && google.accounts) {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          include_granted_scopes: true,
+          callback: onToken,
+          error_callback: function () {
+            openAuthWindow();
+          },
+        });
+      } else {
+        setTimeout(function () {
+          if (typeof google !== 'undefined' && google.accounts) {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: CLIENT_ID, scope: SCOPES, include_granted_scopes: true,
+              callback: onToken, error_callback: function () { openAuthWindow(); },
+            });
+          }
+        }, 1500);
+      }
+    }
+
+    function doLogin() {
+      if (tokenClient && !inIframe) {
+        // Direct browser: use GIS popup (fast)
+        tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        // iframe (Notion): open auth in new window
+        openAuthWindow();
+      }
+    }
+
+    function openAuthWindow() {
+      window.open(buildAuthUrl(), '_blank');
+      toast('ブラウザで認証を完了後、ここをリロードしてください');
     }
 
     function onToken(resp) {
@@ -1282,8 +1321,7 @@
       accessToken = resp.access_token;
       var granted = resp.scope || '';
       hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
-      sessionStorage.setItem('cal_token', accessToken);
-      sessionStorage.setItem('cal_scope', granted);
+      saveToken(accessToken, granted);
       onLoggedIn();
     }
 
@@ -1298,10 +1336,9 @@
     }
 
     function doLogout() {
-      if (accessToken) google.accounts.oauth2.revoke(accessToken, function () { });
+      if (accessToken && typeof google !== 'undefined' && google.accounts) google.accounts.oauth2.revoke(accessToken, function () { });
       accessToken = null; hasFullCalScope = false;
-      sessionStorage.removeItem('cal_token');
-      sessionStorage.removeItem('cal_scope');
+      clearToken();
       cache = {}; calendarList = []; enabledCalendars = {};
       document.getElementById('widget').style.display = 'none';
       document.getElementById('loginScreen').style.display = 'flex';
