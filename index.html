@@ -1206,29 +1206,22 @@
     // ════════════════════
     //  AUTH (client-only)
     // ════════════════════
+    var hasFullCalScope = false;
+
     function initGIS() {
       if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 200); return; }
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
+        include_granted_scopes: true,
         callback: onToken,
       });
       var t = sessionStorage.getItem('cal_token');
+      var s = sessionStorage.getItem('cal_scope');
       if (t) {
         accessToken = t;
-        // Verify token still works by checking tokeninfo
-        fetch('https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(t))
-          .then(function (r) { return r.json(); })
-          .then(function (info) {
-            if (info.error_description || !info.scope || info.scope.indexOf('calendar') === -1) {
-              sessionStorage.removeItem('cal_token');
-              accessToken = null;
-              toast('セッション切れ。再ログインしてください。', true);
-            } else {
-              onLoggedIn();
-            }
-          })
-          .catch(function () { onLoggedIn(); });
+        hasFullCalScope = s ? s.indexOf('/auth/calendar ') !== -1 || s.endsWith('/auth/calendar') : false;
+        onLoggedIn();
       }
     }
 
@@ -1239,14 +1232,11 @@
 
     function onToken(resp) {
       if (resp.error) { toast('ログイン失敗: ' + resp.error, true); return; }
-      // Check if calendar scope was granted
-      var granted = resp.scope || '';
-      if (granted.indexOf('calendar') === -1) {
-        toast('カレンダーへのアクセスが許可されていません。全ての権限を許可してください。', true);
-        return;
-      }
       accessToken = resp.access_token;
+      var granted = resp.scope || '';
+      hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
       sessionStorage.setItem('cal_token', accessToken);
+      sessionStorage.setItem('cal_scope', granted);
       onLoggedIn();
     }
 
@@ -1262,8 +1252,9 @@
 
     function doLogout() {
       if (accessToken) google.accounts.oauth2.revoke(accessToken, function () { });
-      accessToken = null;
+      accessToken = null; hasFullCalScope = false;
       sessionStorage.removeItem('cal_token');
+      sessionStorage.removeItem('cal_scope');
       cache = {}; calendarList = []; enabledCalendars = {};
       document.getElementById('widget').style.display = 'none';
       document.getElementById('loginScreen').style.display = 'flex';
@@ -1674,6 +1665,13 @@
     var CAL_COLORS = { '1': '#7986cb', '2': '#33b679', '3': '#8e24aa', '4': '#e67c73', '5': '#f6bf26', '6': '#f4511e', '7': '#039be5', '8': '#616161', '9': '#3f51b5', '10': '#0b8043', '11': '#d50000', '12': '#f09300', '13': '#009688', '14': '#795548', '15': '#c2185b', '16': '#6a1b9a', '17': '#e8453c', '18': '#2196f3', '19': '#4caf50', '20': '#ff9800', '21': '#607d8b', '22': '#9e9d24', '23': '#1565c0', '24': '#ad1457' };
 
     function fetchCalendarList() {
+      if (!hasFullCalScope) {
+        // Scope insufficient for CalendarList API — use primary only
+        calendarList = [{ id: 'primary', summary: 'メインカレンダー', colorId: '1', bgColor: '#4b7cf3', accessRole: 'owner', primary: true }];
+        enabledCalendars = { primary: true };
+        renderCalPanel();
+        return Promise.resolve();
+      }
       return apiFetch(API + '/users/me/calendarList').then(function (data) {
         calendarList = (data.items || []).map(function (c) {
           return { id: c.id, summary: c.summary || c.id, colorId: c.colorId || '1', bgColor: c.backgroundColor || CAL_COLORS[c.colorId] || '#4b7cf3', accessRole: c.accessRole, primary: !!c.primary };
@@ -1688,11 +1686,10 @@
           calendarList.forEach(function (c) { enabledCalendars[c.id] = true; });
         }
         renderCalPanel();
-      }).catch(function (e) {
+      }).catch(function () {
         calendarList = [{ id: 'primary', summary: 'メインカレンダー', colorId: '1', bgColor: '#4b7cf3', accessRole: 'owner', primary: true }];
         enabledCalendars = { primary: true };
         renderCalPanel();
-        toast('カレンダーリスト取得失敗: ' + (e.message || e), true);
       });
     }
 
