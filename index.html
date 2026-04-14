@@ -1207,9 +1207,10 @@
 
   <script>
     // ╔═══════════════════════════════════════════════╗
-    // ║  ★ ここにあなたのクライアントIDを設定 ★        ║
+    // ║  ★ 設定 ★                                     ║
     // ╚═══════════════════════════════════════════════╝
     var CLIENT_ID = '864100893514-c5iggvkc1vlbk9g54mv65j5cqrsi77sn.apps.googleusercontent.com';
+    var GAS_URL = ''; // ★ GASデプロイURLをここに設定（例: https://script.google.com/macros/s/XXXXX/exec）
 
     var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
     var API = 'https://www.googleapis.com/calendar/v3';
@@ -1233,30 +1234,38 @@
     var inIframe = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
     var refreshTimer = null;
     var tokenExpiry = 0;
+    var userEmail = '';
 
-    function saveToken(token, scope, expiresIn) {
+    function saveToken(token, scope, expiresIn, email) {
       var exp = expiresIn ? Date.now() + expiresIn * 1000 : 0;
       tokenExpiry = exp;
-      try { localStorage.setItem('cal_token', token); localStorage.setItem('cal_scope', scope); localStorage.setItem('cal_expiry', String(exp)); } catch (e) { }
-      try { sessionStorage.setItem('cal_token', token); sessionStorage.setItem('cal_scope', scope); sessionStorage.setItem('cal_expiry', String(exp)); } catch (e) { }
+      if (email) userEmail = email;
+      var data = { t: token, s: scope, x: String(exp), e: userEmail };
+      try { Object.keys(data).forEach(function (k) { localStorage.setItem('cal_' + k, data[k]); }); } catch (e) { }
+      try { Object.keys(data).forEach(function (k) { sessionStorage.setItem('cal_' + k, data[k]); }); } catch (e) { }
     }
 
     function loadToken() {
-      var t = null, s = '', exp = 0;
-      try { t = sessionStorage.getItem('cal_token'); s = sessionStorage.getItem('cal_scope') || ''; exp = parseInt(sessionStorage.getItem('cal_expiry')) || 0; } catch (e) { }
-      if (!t) { try { t = localStorage.getItem('cal_token'); s = localStorage.getItem('cal_scope') || ''; exp = parseInt(localStorage.getItem('cal_expiry')) || 0; } catch (e) { } }
-      if (t && exp && exp < Date.now()) { clearToken(); return null; }
-      if (t) tokenExpiry = exp;
+      var g = function (k) { var v; try { v = sessionStorage.getItem('cal_' + k); } catch (e) { } if (!v) try { v = localStorage.getItem('cal_' + k); } catch (e) { } return v || ''; };
+      var t = g('t'), s = g('s'), exp = parseInt(g('x')) || 0, em = g('e');
+      if (t && exp && exp < Date.now()) {
+        // Token expired, but if we have email + GAS, try refresh before clearing
+        if (em && GAS_URL) { userEmail = em; return { token: t, scope: s, expired: true }; }
+        clearToken(); return null;
+      }
+      if (t) { tokenExpiry = exp; userEmail = em; }
       return t ? { token: t, scope: s } : null;
     }
 
     function clearToken() {
-      try { localStorage.removeItem('cal_token'); localStorage.removeItem('cal_scope'); localStorage.removeItem('cal_expiry'); } catch (e) { }
-      try { sessionStorage.removeItem('cal_token'); sessionStorage.removeItem('cal_scope'); sessionStorage.removeItem('cal_expiry'); } catch (e) { }
-      tokenExpiry = 0;
+      ['t', 's', 'x', 'e'].forEach(function (k) {
+        try { localStorage.removeItem('cal_' + k); } catch (e) { }
+        try { sessionStorage.removeItem('cal_' + k); } catch (e) { }
+      });
+      tokenExpiry = 0; userEmail = '';
     }
 
-    // Check URL hash for OAuth redirect token
+    // Check URL hash for OAuth redirect/callback token
     function checkRedirectToken() {
       var hash = location.hash;
       if (!hash || hash.indexOf('access_token=') === -1) return false;
@@ -1268,25 +1277,28 @@
       if (params.access_token) {
         accessToken = params.access_token;
         var sc = params.scope || '';
+        var em = params.email || '';
         hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
-        saveToken(accessToken, sc, parseInt(params.expires_in) || 3600);
+        saveToken(accessToken, sc, parseInt(params.expires_in) || 3600, em);
         history.replaceState(null, '', location.pathname);
-        // If opened as auth callback in a new tab, show token copy UI
-        if (!inIframe) {
-          document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#191919;color:#e8e8e8;font-family:sans-serif;text-align:center;padding:20px;gap:16px;">'
-            + '<div style="font-size:24px;">✅ 認証完了！</div>'
-            + '<div style="font-size:14px;color:#999;">Notionアプリで使うには、下のボタンでトークンをコピーして<br>アプリ側の「トークンを貼り付け」に貼り付けてください。</div>'
-            + '<button onclick="navigator.clipboard.writeText(\'' + accessToken + '\');this.textContent=\'✅ コピーしました！\'" style="padding:12px 28px;border:1px solid #555;border-radius:8px;background:#4b7cf3;color:#fff;font-size:16px;cursor:pointer;">📋 トークンをコピー</button>'
-            + '<div style="font-size:12px;color:#666;margin-top:8px;">ブラウザで直接使う場合は自動ログインされています → <a href="' + location.pathname + '" style="color:#4b7cf3;">開く</a></div>'
-            + '</div>';
-          return 'done';
-        }
         return true;
       }
       return false;
     }
 
     function buildAuthUrl() {
+      // If GAS is configured, use Authorization Code flow (gets refresh_token)
+      if (GAS_URL) {
+        return 'https://accounts.google.com/o/oauth2/v2/auth'
+          + '?client_id=' + encodeURIComponent(CLIENT_ID)
+          + '&redirect_uri=' + encodeURIComponent(GAS_URL + '?action=callback')
+          + '&response_type=code'
+          + '&scope=' + encodeURIComponent(SCOPES)
+          + '&access_type=offline'
+          + '&prompt=consent'
+          + '&include_granted_scopes=true';
+      }
+      // Fallback: Implicit flow (no refresh token)
       return 'https://accounts.google.com/o/oauth2/v2/auth'
         + '?client_id=' + encodeURIComponent(CLIENT_ID)
         + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
@@ -1297,30 +1309,28 @@
 
     function initGIS() {
       var redir = checkRedirectToken();
-      if (redir === 'done') return; // Auth callback page — stop here
       if (redir === true) { onLoggedIn(); return; }
 
       // Check saved token
       var saved = loadToken();
-      if (saved) {
+      if (saved && saved.expired && GAS_URL && userEmail) {
+        // Token expired but we can refresh via GAS
+        refreshViaGAS().then(function () { onLoggedIn(); }).catch(function () { clearToken(); });
+        return;
+      }
+      if (saved && !saved.expired) {
         accessToken = saved.token;
         hasFullCalScope = saved.scope.indexOf('/auth/calendar ') !== -1 || saved.scope.endsWith('/auth/calendar');
         onLoggedIn();
         return;
       }
 
-      // Init GIS (if available — won't load in some iframe contexts)
+      // Init GIS as fallback (for browsers without GAS)
       if (typeof google !== 'undefined' && google.accounts) {
         tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          include_granted_scopes: true,
+          client_id: CLIENT_ID, scope: SCOPES, include_granted_scopes: true,
           callback: onToken,
-          error_callback: function () {
-            // Popup failed — show reload prompt
-            var rl = document.getElementById('reloadPrompt');
-            if (rl) rl.style.display = '';
-          },
+          error_callback: function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; },
         });
       } else {
         setTimeout(function () {
@@ -1335,33 +1345,22 @@
     }
 
     function doLogin() {
-      if (tokenClient && !inIframe) {
-        // Direct browser: use GIS popup (fast)
-        tokenClient.requestAccessToken({ prompt: '' });
-      } else {
-        // iframe (Notion): use hidden <a target=_blank> to open in system browser
-        var a = document.createElement('a');
-        a.href = buildAuthUrl();
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // Show reload prompt after short delay
-        setTimeout(function () {
-          var rl = document.getElementById('reloadPrompt');
-          if (rl) rl.style.display = '';
-        }, 2000);
-      }
+      // Use <a target=_blank> for all contexts (works in browser + Notion webview)
+      var a = document.createElement('a');
+      a.href = buildAuthUrl();
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; }, 2000);
     }
 
     function copyToken() {
       if (!accessToken) { toast('ログインしていません', true); return; }
       navigator.clipboard.writeText(accessToken).then(function () {
         toast('トークンをコピーしました。Notionアプリに貼り付けてください。');
-      }).catch(function () {
-        prompt('トークンをコピーしてください:', accessToken);
-      });
+      }).catch(function () { prompt('トークンをコピーしてください:', accessToken); });
     }
 
     function doTokenPaste() {
@@ -1369,7 +1368,10 @@
       if (!t) { toast('トークンを貼り付けてください', true); return; }
       accessToken = t;
       hasFullCalScope = true;
-      saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600);
+      // Get email for refresh token support
+      apiFetch('https://www.googleapis.com/oauth2/v2/userinfo').then(function (u) {
+        saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600, u.email || '');
+      }).catch(function () { saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600, ''); });
       onLoggedIn();
     }
 
@@ -1383,17 +1385,31 @@
       onLoggedIn();
     }
 
+    function refreshViaGAS() {
+      if (!GAS_URL || !userEmail) return Promise.reject('no GAS or email');
+      return fetch(GAS_URL + '?action=refresh&email=' + encodeURIComponent(userEmail))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) throw new Error(data.error);
+          accessToken = data.access_token;
+          hasFullCalScope = true;
+          saveToken(accessToken, 'https://www.googleapis.com/auth/calendar', data.expires_in || 3600, userEmail);
+          scheduleRefresh();
+        });
+    }
+
     function scheduleRefresh() {
       if (refreshTimer) clearTimeout(refreshTimer);
       if (!tokenExpiry) return;
-      var ms = tokenExpiry - Date.now() - 300000; // 5分前にリフレッシュ
+      var ms = tokenExpiry - Date.now() - 300000; // 5分前
       if (ms < 10000) ms = 10000;
       refreshTimer = setTimeout(function () {
-        if (tokenClient) {
+        if (GAS_URL && userEmail) {
+          refreshViaGAS().catch(function () { toast('セッション切れ。再ログインしてください。', true); doLogout(); });
+        } else if (tokenClient) {
           tokenClient.requestAccessToken({ prompt: '' });
         } else {
-          toast('セッション切れ。再ログインしてください。', true);
-          doLogout();
+          toast('セッション切れ。再ログインしてください。', true); doLogout();
         }
       }, ms);
     }
