@@ -1107,6 +1107,10 @@
       </svg>
       Googleでログイン
     </button>
+    <div id="reloadPrompt" style="display:none;margin-top:16px;text-align:center;">
+      <div style="font-size:13px;color:#999;margin-bottom:10px;">ブラウザで認証を完了しましたか？</div>
+      <button onclick="location.reload()" style="padding:10px 24px;border:1px solid #555;border-radius:8px;background:#272727;color:#e8e8e8;font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;">🔄 リロードしてログイン</button>
+    </div>
   </div>
 
   <div class="widget" id="widget" style="display:none">
@@ -1286,7 +1290,9 @@
           include_granted_scopes: true,
           callback: onToken,
           error_callback: function () {
-            openAuthWindow();
+            // Popup failed — show reload prompt
+            var rl = document.getElementById('reloadPrompt');
+            if (rl) rl.style.display = '';
           },
         });
       } else {
@@ -1294,7 +1300,7 @@
           if (typeof google !== 'undefined' && google.accounts) {
             tokenClient = google.accounts.oauth2.initTokenClient({
               client_id: CLIENT_ID, scope: SCOPES, include_granted_scopes: true,
-              callback: onToken, error_callback: function () { openAuthWindow(); },
+              callback: onToken, error_callback: function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; },
             });
           }
         }, 1500);
@@ -1306,14 +1312,20 @@
         // Direct browser: use GIS popup (fast)
         tokenClient.requestAccessToken({ prompt: '' });
       } else {
-        // iframe (Notion): open auth in new window
-        openAuthWindow();
+        // iframe (Notion): use hidden <a target=_blank> to open in system browser
+        var a = document.createElement('a');
+        a.href = buildAuthUrl();
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Show reload prompt after short delay
+        setTimeout(function () {
+          var rl = document.getElementById('reloadPrompt');
+          if (rl) rl.style.display = '';
+        }, 2000);
       }
-    }
-
-    function openAuthWindow() {
-      window.open(buildAuthUrl(), '_blank');
-      toast('ブラウザで認証を完了後、ここをリロードしてください');
     }
 
     function onToken(resp) {
