@@ -1129,6 +1129,7 @@
     <div class="user-bar" id="userBar">
       <img class="user-avatar" id="userAvatar" src="" alt="">
       <span class="user-name" id="userName">ログイン中...</span>
+      <button id="btnCopyToken" class="user-logout" onclick="copyToken()" style="display:none;">📋 トークンコピー</button>
       <button class="user-logout" onclick="doLogout()">ログアウト</button>
     </div>
     <div class="header">
@@ -1340,6 +1341,15 @@
       }
     }
 
+    function copyToken() {
+      if (!accessToken) { toast('ログインしていません', true); return; }
+      navigator.clipboard.writeText(accessToken).then(function () {
+        toast('トークンをコピーしました。Notionアプリに貼り付けてください。');
+      }).catch(function () {
+        prompt('トークンをコピーしてください:', accessToken);
+      });
+    }
+
     function doTokenPaste() {
       var t = document.getElementById('fToken').value.trim();
       if (!t) { toast('トークンを貼り付けてください', true); return; }
@@ -1361,6 +1371,8 @@
     function onLoggedIn() {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('widget').style.display = 'flex';
+      // Show copy button when in browser (not iframe) — for Notion app users
+      if (!inIframe) document.getElementById('btnCopyToken').style.display = '';
       fetchUser();
       curYear = new Date().getFullYear();
       curMonth = new Date().getMonth();
