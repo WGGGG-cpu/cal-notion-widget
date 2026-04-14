@@ -1159,14 +1159,14 @@
       <div class="check-row" onclick="toggleAllDay()"><input type="checkbox" id="fAllDay"><span>終日</span></div>
       <div id="dateTimeFields">
         <div class="field-row">
-          <div class="field"><label>開始日時</label><input type="datetime-local" id="fStart"></div>
-          <div class="field"><label>終了日時</label><input type="datetime-local" id="fEnd"></div>
+          <div class="field"><label>開始日時</label><input type="text" id="fStart" placeholder="2026-04-14 09:00" inputmode="numeric"></div>
+          <div class="field"><label>終了日時</label><input type="text" id="fEnd" placeholder="2026-04-14 10:00" inputmode="numeric"></div>
         </div>
       </div>
       <div id="allDayFields" style="display:none">
         <div class="field-row">
-          <div class="field"><label>開始日</label><input type="date" id="fStartDate"></div>
-          <div class="field"><label>終了日</label><input type="date" id="fEndDate"></div>
+          <div class="field"><label>開始日</label><input type="text" id="fStartDate" placeholder="2026-04-14" inputmode="numeric"></div>
+          <div class="field"><label>終了日</label><input type="text" id="fEndDate" placeholder="2026-04-14" inputmode="numeric"></div>
         </div>
       </div>
       <div class="field"><label>場所</label><input type="text" id="fLocation" placeholder="場所（任意）"></div>
@@ -1676,7 +1676,7 @@
       buildCalendarSelect(null);
       document.getElementById('fCalendarField').style.display = '';
       var d = date || new Date(), ds = fmtDate(d);
-      document.getElementById('fStart').value = ds + 'T09:00'; document.getElementById('fEnd').value = ds + 'T10:00';
+      document.getElementById('fStart').value = ds + ' 09:00'; document.getElementById('fEnd').value = ds + ' 10:00';
       document.getElementById('fStartDate').value = ds; document.getElementById('fEndDate').value = ds;
       document.getElementById('modalOverlay').classList.add('show');
       setTimeout(function () { document.getElementById('fTitle').focus(); }, 100);
@@ -1719,8 +1719,8 @@
         body.start = { date: document.getElementById('fStartDate').value };
         body.end = { date: endExcl };
       } else {
-        body.start = { dateTime: new Date(document.getElementById('fStart').value).toISOString(), timeZone: tz };
-        body.end = { dateTime: new Date(document.getElementById('fEnd').value).toISOString(), timeZone: tz };
+        body.start = { dateTime: new Date(document.getElementById('fStart').value.replace(' ', 'T')).toISOString(), timeZone: tz };
+        body.end = { dateTime: new Date(document.getElementById('fEnd').value.replace(' ', 'T')).toISOString(), timeZone: tz };
       }
       var loc = document.getElementById('fLocation').value; if (loc) body.location = loc;
       var desc = document.getElementById('fDesc').value; if (desc) body.description = desc;
@@ -1782,7 +1782,7 @@
     //  HELPERS
     // ════════════════════
     function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-    function fmtDT(d) { return fmtDate(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function fmtDT(d) { return fmtDate(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function toast(msg, isErr) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (isErr ? ' error' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
 
     // ════════════════════
