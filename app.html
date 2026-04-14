@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendar Widget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #191919;
+      --bg2: #212121;
+      --bg3: #272727;
+      --bg-hover: #2e2e2e;
+      --bg-today: rgba(55, 110, 240, 0.14);
+      --accent: #4b7cf3;
+      --accent-hover: #5d8bf5;
+      --danger: #e84057;
+      --danger-hover: #f05068;
+      --text: #e8e8e8;
+      --text2: #999;
+      --text3: #666;
+      --border: #333;
+      --overlay: rgba(0, 0, 0, 0.6);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --cell-min-h: 140px;
+      --header-fs: 26px;
+      --day-fs: 15px;
+      --ev-fs: 14px;
+      --ev-time-fs: 12px;
+      --widget-pad: 20px;
+      --grid-gap: 3px;
+      --cell-pad: 5px 6px;
+      --day-size: 26px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 17px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      overflow-y: auto;
+      height: 100%;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .widget {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      padding: var(--widget-pad);
+      gap: 14px;
+    }
+
+    /* Login */
+    .login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .login-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .login-desc {
+      font-size: 13px;
+      color: var(--text2);
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    .login-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg2);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .login-btn:hover {
+      background: var(--bg-hover);
+      border-color: #555;
+    }
+
+    .login-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* User bar */
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg2);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--bg3);
+    }
+
+    .user-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-logout {
+      border: none;
+      background: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+
+    .user-logout:hover {
+      color: var(--text);
+      background: var(--bg3);
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .month-title {
+      font-size: var(--header-fs);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .year-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      height: 34px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--bg3);
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-nav {
+      width: 34px;
+      font-size: 18px;
+    }
+
+    .btn-today {
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .btn-add {
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--accent);
+      color: #fff;
+      gap: 4px;
+    }
+
+    .btn-add:hover {
+      background: var(--accent-hover);
+      color: #fff;
+    }
+
+    /* Grid */
+    .cal-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--grid-gap);
+      flex: 1;
+      min-height: 0;
+    }
+
+    .dow-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--grid-gap);
+    }
+
+    .dow {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text3);
+      text-align: center;
+      padding: 4px 0 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .dow.sat {
+      color: #5588cc;
+    }
+
+    .dow.sun {
+      color: #cc5555;
+    }
+
+    .week-row {
+      flex: 1;
+      min-height: var(--cell-min-h);
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0 var(--grid-gap);
+    }
+
+    .day-bg {
+      background: var(--bg2);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+
+    .day-bg:hover {
+      background: var(--bg-hover);
+    }
+
+    .day-bg.outside {
+      background: transparent;
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .day-bg.today {
+      background: var(--bg-today);
+      box-shadow: inset 0 0 0 1.5px rgba(75, 124, 243, 0.35);
+    }
+
+    .day-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--day-fs);
+      font-weight: 400;
+      color: var(--text2);
+      width: var(--day-size);
+      height: var(--day-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      padding: 2px;
+      margin: 3px 0 0 3px;
+    }
+
+    .day-num.today-num {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .day-num.sat {
+      color: #6699dd;
+    }
+
+    .day-num.sun {
+      color: #dd6666;
+    }
+
+    .day-num.outside {
+      opacity: 0.25;
+    }
+
+    .multi-bar {
+      height: 24px;
+      font-size: 17px;
+      line-height: 24px;
+      padding: 0 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      background: #4b7cf3;
+      border-radius: 0;
+      transition: opacity 0.12s;
+      z-index: 2;
+      margin: 1px 0;
+    }
+
+    .multi-bar:hover {
+      opacity: 0.75;
+    }
+
+    .multi-bar.start {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      margin-left: 2px;
+    }
+
+    .multi-bar.end {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+      margin-right: 2px;
+    }
+
+    .multi-bar.ec0, .multi-bar.ec1 { background: #4b7cf3; color: #ffffff; }
+    .multi-bar.ec2 { background: #23a55a; color: #ffffff; }
+    .multi-bar.ec3 { background: #9b59b6; color: #ffffff; }
+    .multi-bar.ec4 { background: #e84057; color: #ffffff; }
+    .multi-bar.ec5 { background: #d4a017; color: #ffffff; }
+    .multi-bar.ec6 { background: #e67e22; color: #ffffff; }
+    .multi-bar.ec7 { background: #00a0c0; color: #ffffff; }
+    .multi-bar.ec8 { background: #777; color: #ffffff; }
+    .multi-bar.ec9 { background: #3f51b5; color: #ffffff; }
+    .multi-bar.ec10 { background: #0b8043; color: #ffffff; }
+    .multi-bar.ec11 { background: #e84393; color: #ffffff; }
+
+    .day-events {
+      z-index: 1;
+      padding: 0 4px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-height: 0;
+    }
+
+    .more-ev {
+      cursor: pointer;
+      pointer-events: auto;
+      position: relative;
+      z-index: 3;
+    }
+
+    .more-ev:hover {
+      color: var(--accent);
+    }
+
+    .ev-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .ev-pill {
+      font-size: 15px;
+      line-height: 1.4;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: opacity 0.12s;
+      font-weight: 600;
+    }
+
+    .ev-pill:hover {
+      opacity: 0.75;
+    }
+
+    .ev-pill.allday {
+      font-weight: 600;
+    }
+
+    .ev-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--ev-time-fs);
+      opacity: 0.7;
+      margin-right: 4px;
+    }
+
+    .more-ev {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 2px 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .ev-dots {
+      display: none;
+      flex-wrap: wrap;
+      gap: 3px;
+      padding-top: 2px;
+    }
+
+    .ev-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .ec0,
+    .ec1 {
+      background: rgba(75, 124, 243, 0.45);
+      color: #ffffff;
+    }
+
+    .ec2 {
+      background: rgba(35, 165, 90, 0.45);
+      color: #ffffff;
+    }
+
+    .ec3 {
+      background: rgba(156, 89, 182, 0.45);
+      color: #ffffff;
+    }
+
+    .ec4 {
+      background: rgba(232, 64, 87, 0.45);
+      color: #ffffff;
+    }
+
+    .ec5 {
+      background: rgba(240, 178, 50, 0.45);
+      color: #ffffff;
+    }
+
+    .ec6 {
+      background: rgba(230, 126, 34, 0.45);
+      color: #ffffff;
+    }
+
+    .ec7 {
+      background: rgba(0, 180, 216, 0.45);
+      color: #ffffff;
+    }
+
+    .ec8 {
+      background: rgba(120, 120, 120, 0.45);
+      color: #ffffff;
+    }
+
+    .ec9 {
+      background: rgba(75, 124, 243, 0.45);
+      color: #ffffff;
+    }
+
+    .ec10 {
+      background: rgba(35, 165, 90, 0.45);
+      color: #ffffff;
+    }
+
+    .ec11 {
+      background: rgba(232, 67, 147, 0.45);
+      color: #ffffff;
+    }
+
+    .dot-0,
+    .dot-1 {
+      background: #4b7cf3;
+    }
+
+    .dot-2 {
+      background: #23a55a;
+    }
+
+    .dot-3 {
+      background: #9b59b6;
+    }
+
+    .dot-4 {
+      background: #e84057;
+    }
+
+    .dot-5 {
+      background: #f0b232;
+    }
+
+    .dot-6 {
+      background: #e67e22;
+    }
+
+    .dot-7 {
+      background: #00b4d8;
+    }
+
+    .dot-8 {
+      background: #888;
+    }
+
+    .dot-10 {
+      background: #23a55a;
+    }
+
+    .dot-11 {
+      background: #e84393;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      z-index: 900;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 420px;
+      max-width: 100%;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      padding: 24px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-close {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 50%;
+      background: var(--bg3);
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .field-row .field {
+      flex: 1;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+
+    .check-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .check-row span {
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .color-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .color-dot:hover {
+      transform: scale(1.15);
+    }
+
+    .color-dot.active {
+      border-color: #fff;
+      transform: scale(1.15);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.96);
+    }
+
+    .modal-btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .modal-btn.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .modal-btn.cancel {
+      background: var(--bg3);
+      color: var(--text2);
+    }
+
+    .modal-btn.cancel:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .modal-btn.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .modal-btn.danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .modal-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .modal-btn.delete-left {
+      margin-right: auto;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+
+    .loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ldot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin: 0 4px;
+      animation: lp 1.2s ease-in-out infinite;
+    }
+
+    .ldot:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .ldot:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    @keyframes lp {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0.5);
+        opacity: 0.3;
+      }
+
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media(max-width:500px) {
+      :root {
+        --cell-min-h: 52px;
+        --header-fs: 22px;
+        --day-fs: 13px;
+        --ev-fs: 12px;
+        --ev-time-fs: 11px;
+        --widget-pad: 12px;
+        --grid-gap: 2px;
+        --cell-pad: 3px 4px;
+        --day-size: 22px;
+      }
+
+      .btn {
+        height: 30px;
+      }
+
+      .btn-nav {
+        width: 30px;
+        font-size: 16px;
+      }
+
+      .btn-today {
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      .btn-add {
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      .year-label {
+        font-size: 12px;
+      }
+
+      .ev-pill {
+        padding: 2px 4px;
+      }
+
+      .multi-bar {
+        height: 20px;
+        font-size: 12px;
+        line-height: 20px;
+        padding: 0 5px;
+      }
+
+      .modal {
+        padding: 18px;
+      }
+
+      .field-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .user-bar {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .user-avatar {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    @media(max-width:380px) {
+      :root {
+        --cell-min-h: 44px;
+        --header-fs: 19px;
+        --day-fs: 12px;
+        --widget-pad: 8px;
+        --cell-pad: 2px 3px;
+        --day-size: 20px;
+      }
+
+      .ev-list {
+        display: none !important;
+      }
+
+      .ev-dots {
+        display: flex !important;
+      }
+
+      .more-ev {
+        display: none;
+      }
+
+      .btn-today span {
+        display: none;
+      }
+
+      .btn-add span.label {
+        display: none;
+      }
+
+      .btn-cal-list span.label {
+        display: none;
+      }
+
+      .multi-bar {
+        height: 18px;
+        font-size: 11px;
+        line-height: 18px;
+        padding: 0 4px;
+      }
+    }
+
+    /* Calendar select in modal */
+    #fCalendar {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Noto Sans JP', sans-serif;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #fCalendar:focus {
+      border-color: var(--accent);
+    }
+
+    /* Calendar list panel */
+    .btn-cal-list {
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+      gap: 4px;
+    }
+
+    .cal-panel-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      z-index: 200;
+      justify-content: flex-end;
+    }
+
+    .cal-panel-overlay.show {
+      display: flex;
+    }
+
+    .cal-panel {
+      width: 280px;
+      max-width: 85vw;
+      height: 100%;
+      background: var(--bg2);
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cal-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cal-panel-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .cal-panel-close {
+      border: none;
+      background: none;
+      color: var(--text2);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .cal-panel-close:hover {
+      color: var(--text);
+      background: var(--bg3);
+    }
+
+    .cal-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .cal-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+
+    .cal-item:hover {
+      background: var(--bg-hover);
+    }
+
+    .cal-item-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .cal-item-name {
+      flex: 1;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cal-item-check {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .cal-item.active .cal-item-check {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .cal-item.active .cal-item-check::after {
+      content: '✓';
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-screen" id="loginScreen">
+    <div class="login-icon">📅</div>
+    <div class="login-title">カレンダーウィジェット</div>
+    <div class="login-desc">Googleアカウントでログインすると、あなたのGoogle Calendarの予定を表示・管理できます。</div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335"
+          d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+        <path fill="#4285F4"
+          d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+        <path fill="#FBBC05"
+          d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+        <path fill="#34A853"
+          d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+      </svg>
+      Googleでログイン
+    </button>
+    <div id="reloadPrompt" style="display:none;margin-top:16px;text-align:center;">
+      <div style="font-size:13px;color:#999;margin-bottom:10px;">ブラウザで認証を完了しましたか？</div>
+      <button onclick="location.reload()" style="padding:10px 24px;border:1px solid #555;border-radius:8px;background:#272727;color:#e8e8e8;font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;">🔄 リロードしてログイン</button>
+    </div>
+    <div id="emailLogin" style="margin-top:20px;text-align:center;">
+      <div style="font-size:13px;color:#999;margin-bottom:8px;">ブラウザで認証済みの場合:</div>
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
+        <input type="email" id="fEmail" placeholder="Googleメールアドレス" style="padding:8px 10px;border:1px solid #333;border-radius:6px;background:#212121;color:#e8e8e8;font-size:13px;width:200px;font-family:'Noto Sans JP',sans-serif;">
+        <button onclick="doEmailLogin()" style="padding:8px 14px;border:none;border-radius:6px;background:#4b7cf3;color:#fff;font-size:13px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">ログイン</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="widget" id="widget" style="display:none">
+    <div class="loader" id="loader">
+      <div class="ldot"></div>
+      <div class="ldot"></div>
+      <div class="ldot"></div>
+    </div>
+    <div class="user-bar" id="userBar">
+      <img class="user-avatar" id="userAvatar" src="" alt="">
+      <span class="user-name" id="userName">ログイン中...</span>
+      <button id="btnCopyToken" class="user-logout" onclick="copyToken()" style="display:none;">📋 トークンコピー</button>
+      <button class="user-logout" onclick="doLogout()">ログアウト</button>
+    </div>
+    <div class="header">
+      <div class="header-left">
+        <span class="month-title" id="monthTitle"></span>
+        <span class="year-label" id="yearLabel"></span>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn btn-add" onclick="openCreate()">＋ <span class="label">追加</span></button>
+        <button class="btn btn-cal-list" onclick="openCalPanel()">☰ <span class="label">カレンダー</span></button>
+        <button class="btn btn-today" onclick="goToday()"><span>今日</span></button>
+        <button class="btn btn-nav" onclick="goPrev()">‹</button>
+        <button class="btn btn-nav" onclick="goNext()">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-title">
+        <span id="modalTitleText">新規予定</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="field"><label>タイトル</label><input type="text" id="fTitle" placeholder="予定のタイトル"></div>
+      <div class="field" id="fCalendarField"><label>カレンダー</label><select id="fCalendar"></select></div>
+      <div class="check-row" onclick="toggleAllDay()"><input type="checkbox" id="fAllDay"><span>終日</span></div>
+      <div id="dateTimeFields">
+        <div class="field-row">
+          <div class="field"><label>開始日時</label><input type="text" id="fStart" placeholder="2026-04-14 09:00" inputmode="numeric"></div>
+          <div class="field"><label>終了日時</label><input type="text" id="fEnd" placeholder="2026-04-14 10:00" inputmode="numeric"></div>
+        </div>
+      </div>
+      <div id="allDayFields" style="display:none">
+        <div class="field-row">
+          <div class="field"><label>開始日</label><input type="text" id="fStartDate" placeholder="2026-04-14" inputmode="numeric"></div>
+          <div class="field"><label>終了日</label><input type="text" id="fEndDate" placeholder="2026-04-14" inputmode="numeric"></div>
+        </div>
+      </div>
+      <div class="field"><label>場所</label><input type="text" id="fLocation" placeholder="場所（任意）"></div>
+      <div class="field"><label>メモ</label><textarea id="fDesc" placeholder="メモ（任意）"></textarea></div>
+      <div class="modal-actions">
+        <button class="modal-btn danger delete-left" id="btnDelete" style="display:none"
+          onclick="doDelete()">削除</button>
+        <button class="modal-btn cancel" onclick="closeModal()">キャンセル</button>
+        <button class="modal-btn primary" id="btnSave" onclick="doSave()">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div class="cal-panel-overlay" id="calPanelOverlay">
+    <div class="cal-panel">
+      <div class="cal-panel-header">
+        <span class="cal-panel-title">カレンダー</span>
+        <button class="cal-panel-close" onclick="closeCalPanel()">✕</button>
+      </div>
+      <div id="calListMine"></div>
+      <div id="calListOther"></div>
+    </div>
+  </div>
+
+  <!-- GIS: ポップアップ方式でトークン取得。オリジン制約なし -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script>
+    // ╔═══════════════════════════════════════════════╗
+    // ║  ★ 設定 ★                                     ║
+    // ╚═══════════════════════════════════════════════╝
+    var CLIENT_ID = '864100893514-c5iggvkc1vlbk9g54mv65j5cqrsi77sn.apps.googleusercontent.com';
+    var GAS_URL = 'https://script.google.com/macros/s/AKfycbwkuBCpxQXp9iT0l4O6_kvvD4cYX3X4IqBx9rxEsTCr-t6ly75HRpqdsJ_jpmVGwq5u/exec';
+
+    var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+    var API = 'https://www.googleapis.com/calendar/v3';
+    var MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    var DOW = ['月', '火', '水', '木', '金', '土', '日'];
+    var MAX_EV = 5;
+    var COLOR_MAP = [
+      { id: '1', bg: '#4b7cf3' }, { id: '2', bg: '#23a55a' }, { id: '3', bg: '#9b59b6' }, { id: '4', bg: '#e84057' },
+      { id: '5', bg: '#f0b232' }, { id: '6', bg: '#e67e22' }, { id: '7', bg: '#00b4d8' }, { id: '8', bg: '#888' }, { id: '11', bg: '#e84393' },
+    ];
+
+    var curYear, curMonth, cache = {}, editingEvent = null;
+    var accessToken = null, tokenClient = null;
+    var calendarList = [], enabledCalendars = {};
+
+    // ════════════════════
+    //  AUTH (client-only)
+    // ════════════════════
+    var hasFullCalScope = false;
+    var REDIRECT_URI = location.origin + location.pathname;
+    var inIframe = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+    var refreshTimer = null;
+    var tokenExpiry = 0;
+    var userEmail = '';
+
+    function saveToken(token, scope, expiresIn, email) {
+      var exp = expiresIn ? Date.now() + expiresIn * 1000 : 0;
+      tokenExpiry = exp;
+      if (email) userEmail = email;
+      var data = { t: token, s: scope, x: String(exp), e: userEmail };
+      try { Object.keys(data).forEach(function (k) { localStorage.setItem('cal_' + k, data[k]); }); } catch (e) { }
+      try { Object.keys(data).forEach(function (k) { sessionStorage.setItem('cal_' + k, data[k]); }); } catch (e) { }
+    }
+
+    function loadToken() {
+      var g = function (k) { var v; try { v = sessionStorage.getItem('cal_' + k); } catch (e) { } if (!v) try { v = localStorage.getItem('cal_' + k); } catch (e) { } return v || ''; };
+      var t = g('t'), s = g('s'), exp = parseInt(g('x')) || 0, em = g('e');
+      if (t && exp && exp < Date.now()) {
+        // Token expired, but if we have email + GAS, try refresh before clearing
+        if (em && GAS_URL) { userEmail = em; return { token: t, scope: s, expired: true }; }
+        clearToken(); return null;
+      }
+      if (t) { tokenExpiry = exp; userEmail = em; }
+      return t ? { token: t, scope: s } : null;
+    }
+
+    function clearToken() {
+      ['t', 's', 'x', 'e'].forEach(function (k) {
+        try { localStorage.removeItem('cal_' + k); } catch (e) { }
+        try { sessionStorage.removeItem('cal_' + k); } catch (e) { }
+      });
+      tokenExpiry = 0; userEmail = '';
+    }
+
+    // Check URL for OAuth redirect token (hash) or auth code (query)
+    function checkRedirectToken() {
+      // Check hash for access_token (implicit flow)
+      var hash = location.hash;
+      if (hash && hash.indexOf('access_token=') !== -1) {
+        var params = {};
+        hash.substring(1).split('&').forEach(function (p) {
+          var kv = p.split('=');
+          params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+        });
+        if (params.access_token) {
+          accessToken = params.access_token;
+          var sc = params.scope || '';
+          hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
+          saveToken(accessToken, sc, parseInt(params.expires_in) || 3600, params.email || '');
+          history.replaceState(null, '', location.pathname);
+          return true;
+        }
+      }
+      // Check query for authorization code (code flow via GAS)
+      var urlParams = new URLSearchParams(location.search);
+      var code = urlParams.get('code');
+      if (code && GAS_URL) {
+        history.replaceState(null, '', location.pathname);
+        return exchangeCodeViaGAS(code);
+      }
+      return false;
+    }
+
+    function exchangeCodeViaGAS(code) {
+      var url = GAS_URL + '?action=exchange'
+        + '&code=' + encodeURIComponent(code)
+        + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI);
+      document.getElementById('loginScreen').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#999;font-size:16px;">認証処理中...</div>';
+      fetch(url, { redirect: 'follow' })
+        .then(function (r) { return r.text(); })
+        .then(function (txt) {
+          var data; try { data = JSON.parse(txt); } catch (e) { throw new Error('GAS応答解析失敗'); }
+          if (data.error) throw new Error(data.error);
+          accessToken = data.access_token;
+          userEmail = data.email || '';
+          hasFullCalScope = true;
+          saveToken(accessToken, 'https://www.googleapis.com/auth/calendar', data.expires_in || 3600, userEmail);
+          onLoggedIn();
+        })
+        .catch(function (e) { toast('認証失敗: ' + e.message, true); location.href = location.pathname; });
+      return 'async';
+    }
+
+    function buildAuthUrl() {
+      // If GAS is configured, use Authorization Code flow (gets refresh_token)
+      if (GAS_URL) {
+        return 'https://accounts.google.com/o/oauth2/v2/auth'
+          + '?client_id=' + encodeURIComponent(CLIENT_ID)
+          + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
+          + '&response_type=code'
+          + '&scope=' + encodeURIComponent(SCOPES)
+          + '&access_type=offline'
+          + '&prompt=consent'
+          + '&include_granted_scopes=true';
+      }
+      // Fallback: Implicit flow (no refresh token)
+      return 'https://accounts.google.com/o/oauth2/v2/auth'
+        + '?client_id=' + encodeURIComponent(CLIENT_ID)
+        + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
+        + '&response_type=token'
+        + '&scope=' + encodeURIComponent(SCOPES)
+        + '&include_granted_scopes=true';
+    }
+
+    function initGIS() {
+      var redir = checkRedirectToken();
+      if (redir === 'async') return; // Code exchange in progress
+      if (redir === true) { onLoggedIn(); return; }
+
+      // Check saved token
+      var saved = loadToken();
+      if (saved && saved.expired && GAS_URL && userEmail) {
+        // Token expired but we can refresh via GAS
+        refreshViaGAS().then(function () { onLoggedIn(); }).catch(function () { clearToken(); });
+        return;
+      }
+      if (saved && !saved.expired) {
+        accessToken = saved.token;
+        hasFullCalScope = saved.scope.indexOf('/auth/calendar ') !== -1 || saved.scope.endsWith('/auth/calendar');
+        onLoggedIn();
+        return;
+      }
+
+      // Show email login if GAS is configured
+      if (GAS_URL) { var el = document.getElementById('emailLogin'); if (el) el.style.display = ''; }
+
+      // Init GIS as fallback (for browsers without GAS)
+      if (typeof google !== 'undefined' && google.accounts) {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID, scope: SCOPES, include_granted_scopes: true,
+          callback: onToken,
+          error_callback: function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; },
+        });
+      } else {
+        setTimeout(function () {
+          if (typeof google !== 'undefined' && google.accounts) {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: CLIENT_ID, scope: SCOPES, include_granted_scopes: true,
+              callback: onToken, error_callback: function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; },
+            });
+          }
+        }, 1500);
+      }
+    }
+
+    function doLogin() {
+      // Use <a target=_blank> for all contexts (works in browser + Notion webview)
+      var a = document.createElement('a');
+      a.href = buildAuthUrl();
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { var rl = document.getElementById('reloadPrompt'); if (rl) rl.style.display = ''; }, 2000);
+    }
+
+    function copyToken() {
+      if (!accessToken) { toast('ログインしていません', true); return; }
+      navigator.clipboard.writeText(accessToken).then(function () {
+        toast('トークンをコピーしました。Notionアプリに貼り付けてください。');
+      }).catch(function () { prompt('トークンをコピーしてください:', accessToken); });
+    }
+
+    function doEmailLogin() {
+      var email = document.getElementById('fEmail').value.trim();
+      if (!email) { toast('メールアドレスを入力してください', true); return; }
+      if (!GAS_URL) { toast('GAS URLが設定されていません', true); return; }
+      toast('ログイン中...');
+      userEmail = email;
+      refreshViaGAS().then(function () {
+        onLoggedIn();
+      }).catch(function (e) {
+        toast('ログイン失敗: ' + (e.message || e) + '。先にブラウザで認証してください。', true);
+      });
+    }
+
+    function onToken(resp) {
+      if (resp.error) { toast('ログイン失敗: ' + resp.error, true); return; }
+      accessToken = resp.access_token;
+      var granted = resp.scope || '';
+      hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
+      saveToken(accessToken, granted, resp.expires_in || 3600);
+      scheduleRefresh();
+      onLoggedIn();
+    }
+
+    function refreshViaGAS() {
+      if (!GAS_URL || !userEmail) return Promise.reject('no GAS or email');
+      var url = GAS_URL + '?action=refresh&email=' + encodeURIComponent(userEmail);
+      return fetch(url, { redirect: 'follow' })
+        .then(function (r) {
+          return r.text().then(function (txt) {
+            try { return JSON.parse(txt); }
+            catch (e) { throw new Error('GAS応答解析失敗: ' + txt.substring(0, 100)); }
+          });
+        })
+        .then(function (data) {
+          if (data.error) throw new Error(data.error);
+          if (!data.access_token) throw new Error('access_tokenが返されませんでした');
+          accessToken = data.access_token;
+          hasFullCalScope = true;
+          saveToken(accessToken, 'https://www.googleapis.com/auth/calendar', data.expires_in || 3600, userEmail);
+          scheduleRefresh();
+        });
+    }
+
+    function scheduleRefresh() {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (!tokenExpiry) return;
+      var ms = tokenExpiry - Date.now() - 300000; // 5分前
+      if (ms < 10000) ms = 10000;
+      refreshTimer = setTimeout(function () {
+        if (GAS_URL && userEmail) {
+          refreshViaGAS().catch(function () { toast('セッション切れ。再ログインしてください。', true); doLogout(); });
+        } else if (tokenClient) {
+          tokenClient.requestAccessToken({ prompt: '' });
+        } else {
+          toast('セッション切れ。再ログインしてください。', true); doLogout();
+        }
+      }, ms);
+    }
+
+    function onLoggedIn() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('widget').style.display = 'flex';
+      if (!inIframe) document.getElementById('btnCopyToken').style.display = '';
+      scheduleRefresh();
+      fetchUser();
+      curYear = new Date().getFullYear();
+      curMonth = new Date().getMonth();
+      fetchCalendarList().then(function () { loadMonth(); });
+    }
+
+    function doLogout() {
+      if (accessToken && typeof google !== 'undefined' && google.accounts) google.accounts.oauth2.revoke(accessToken, function () { });
+      accessToken = null; hasFullCalScope = false;
+      clearToken();
+      cache = {}; calendarList = []; enabledCalendars = {};
+      document.getElementById('widget').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    // ════════════════════
+    //  API HELPERS
+    // ════════════════════
+    function apiFetch(url, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'Authorization': 'Bearer ' + accessToken }, opts.headers || {});
+      return fetch(url, opts).then(function (r) {
+        if (r.status === 401) {
+          // Try silent refresh if GIS is available
+          if (tokenClient) {
+            return new Promise(function (resolve, reject) {
+              var origCb = tokenClient._callback;
+              tokenClient.callback = function (resp) {
+                tokenClient.callback = origCb || onToken;
+                if (resp.error) { toast('セッション切れ。再ログインしてください。', true); doLogout(); reject(new Error('401')); return; }
+                accessToken = resp.access_token;
+                saveToken(accessToken, resp.scope || '', resp.expires_in || 3600);
+                scheduleRefresh();
+                opts.headers['Authorization'] = 'Bearer ' + accessToken;
+                resolve(fetch(url, opts).then(function (r2) { if (r2.status === 204) return null; return r2.json(); }));
+              };
+              tokenClient.requestAccessToken({ prompt: '' });
+            });
+          }
+          toast('セッション切れ。再ログインしてください。', true); doLogout(); throw new Error('401');
+        }
+        if (r.status === 204) return null;
+        return r.json().then(function (data) {
+          if (!r.ok) {
+            var msg = (data.error && data.error.message) || 'APIエラー (' + r.status + ')';
+            throw new Error(msg);
+          }
+          return data;
+        });
+      });
+    }
+
+    function fetchUser() {
+      apiFetch('https://www.googleapis.com/oauth2/v2/userinfo')
+        .then(function (u) {
+          if (u) {
+            document.getElementById('userName').textContent = u.name || u.email;
+            if (u.picture) document.getElementById('userAvatar').src = u.picture;
+          }
+        }).catch(function () { });
+    }
+
+    // ════════════════════
+    //  CALENDAR DATA
+    // ════════════════════
+    function loadMonth() {
+      var key = curYear + '-' + curMonth;
+      document.getElementById('monthTitle').textContent = MONTHS[curMonth];
+      document.getElementById('yearLabel').textContent = curYear + '年';
+      if (cache[key]) { render(cache[key]); return; }
+
+      var sf = new Date(curYear, curMonth, 1); sf.setDate(sf.getDate() - 7);
+      var ef = new Date(curYear, curMonth + 1, 0); ef.setDate(ef.getDate() + 7);
+
+      var activeIds = Object.keys(enabledCalendars).filter(function (id) { return enabledCalendars[id]; });
+      if (activeIds.length === 0) { cache[key] = []; render([]); document.getElementById('loader').classList.add('hidden'); return; }
+
+      var promises = activeIds.map(function (calId) {
+        var calMeta = calendarList.find(function (c) { return c.id === calId; });
+        var url = API + '/calendars/' + encodeURIComponent(calId) + '/events?'
+          + 'timeMin=' + encodeURIComponent(sf.toISOString())
+          + '&timeMax=' + encodeURIComponent(ef.toISOString())
+          + '&singleEvents=true&orderBy=startTime&maxResults=250';
+        return apiFetch(url).then(function (data) {
+          return (data.items || []).map(function (ev) {
+            var ad = !!ev.start.date;
+            return {
+              id: ev.id, calendarId: calId, title: ev.summary || '',
+              start: ad ? ev.start.date + 'T00:00:00' : ev.start.dateTime,
+              end: ad ? ev.end.date + 'T00:00:00' : ev.end.dateTime,
+              allDay: ad, color: ev.colorId || (calMeta && calMeta.colorId) || '0',
+              bgColor: (calMeta && calMeta.bgColor) || '',
+              location: ev.location || '',
+              description: (ev.description || '').substring(0, 200),
+              readOnly: calMeta ? calMeta.accessRole === 'reader' || calMeta.accessRole === 'freeBusyReader' : false
+            };
+          });
+        }).catch(function () { return []; });
+      });
+
+      Promise.all(promises).then(function (results) {
+        var events = [];
+        results.forEach(function (evs) { events = events.concat(evs); });
+        cache[key] = events;
+        render(events);
+        document.getElementById('loader').classList.add('hidden');
+      });
+    }
+
+    function render(events) {
+      var grid = document.getElementById('calGrid');
+      grid.innerHTML = '';
+
+      // DOW header
+      var dowRow = document.createElement('div');
+      dowRow.className = 'dow-row';
+      DOW.forEach(function (d, i) {
+        var el = document.createElement('div');
+        el.className = 'dow' + (i === 5 ? ' sat' : '') + (i === 6 ? ' sun' : '');
+        el.textContent = d; dowRow.appendChild(el);
+      });
+      grid.appendChild(dowRow);
+
+      var first = new Date(curYear, curMonth, 1), last = new Date(curYear, curMonth + 1, 0);
+      var dim = last.getDate(), startOff = first.getDay(); startOff = startOff === 0 ? 6 : startOff - 1;
+      var now = new Date(), tk = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+      var cw = grid.clientWidth;
+
+      // Classify events: spanning (allDay or multi-day) vs single-day timed
+      var spanning = [], singleMap = {};
+      events.forEach(function (ev) {
+        var s = new Date(ev.start), e = new Date(ev.end);
+        var sDay = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+        var eDay = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+        if (ev.allDay) {
+          var inclEnd = new Date(e.getTime() - 86400000);
+          spanning.push({ ev: ev, sDay: sDay, eDay: inclEnd < sDay ? sDay : inclEnd });
+        } else if (eDay > sDay) {
+          spanning.push({ ev: ev, sDay: sDay, eDay: eDay });
+        } else {
+          var k = sDay.getFullYear() + '-' + sDay.getMonth() + '-' + sDay.getDate();
+          if (!singleMap[k]) singleMap[k] = [];
+          singleMap[k].push(ev);
+        }
+      });
+
+      // Sort spanning: earlier start, then longer duration first
+      spanning.sort(function (a, b) {
+        if (a.sDay < b.sDay) return -1;
+        if (a.sDay > b.sDay) return 1;
+        return (b.eDay - b.sDay) - (a.eDay - a.sDay);
+      });
+
+      // Global lane assignment (prevents overlap)
+      var lanes = [];
+      spanning.forEach(function (sp) {
+        var assigned = -1;
+        for (var l = 0; l < lanes.length; l++) {
+          var free = true;
+          for (var j = 0; j < lanes[l].length; j++) {
+            if (sp.sDay <= lanes[l][j].eDay && sp.eDay >= lanes[l][j].sDay) { free = false; break; }
+          }
+          if (free) { assigned = l; break; }
+        }
+        if (assigned === -1) { assigned = lanes.length; lanes.push([]); }
+        lanes[assigned].push({ sDay: sp.sDay, eDay: sp.eDay });
+        sp.lane = assigned;
+      });
+
+      var maxLanes = cw < 380 ? 1 : (cw < 500 ? 2 : 3);
+
+      // Build 6 week rows — unified grid: day-bg + day-num + multi-bars + day-events
+      for (var w = 0; w < 6; w++) {
+        var weekRow = document.createElement('div');
+        weekRow.className = 'week-row';
+        var wDates = [];
+        for (var d = 0; d < 7; d++) wDates.push(new Date(curYear, curMonth, w * 7 + d - startOff + 1));
+        var wStart = new Date(wDates[0].getFullYear(), wDates[0].getMonth(), wDates[0].getDate());
+        var wEnd = new Date(wDates[6].getFullYear(), wDates[6].getMonth(), wDates[6].getDate());
+
+        // Spanning bars for this week
+        var weekSpans = spanning.filter(function (sp) { return sp.sDay <= wEnd && sp.eDay >= wStart; });
+        var visSpans = weekSpans.filter(function (sp) { return sp.lane < maxLanes; });
+        var usedLanes = [], laneMap = {};
+        visSpans.forEach(function (sp) { if (usedLanes.indexOf(sp.lane) === -1) usedLanes.push(sp.lane); });
+        usedLanes.sort(function (a, b) { return a - b; });
+        usedLanes.forEach(function (l, i) { laneMap[l] = i; });
+        var laneCount = usedLanes.length;
+
+        // Grid rows: 1=day-num, 2..laneCount+1=bars, laneCount+2=events
+        var rowDef = 'auto';
+        for (var l = 0; l < laneCount; l++) rowDef += ' auto';
+        rowDef += ' 1fr';
+        weekRow.style.gridTemplateRows = rowDef;
+
+        // Layer 0: Day backgrounds (span all rows in each column)
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk;
+          var bg = document.createElement('div');
+          bg.className = 'day-bg' + (out ? ' outside' : '') + (isT ? ' today' : '');
+          bg.style.gridColumn = String(d + 1);
+          bg.style.gridRow = '1 / -1';
+          (function (date, isOut) {
+            bg.addEventListener('click', function () { if (!isOut) openCreate(date); });
+          })(new Date(cd), out);
+          weekRow.appendChild(bg);
+        }
+
+        // Layer 1: Day numbers (row 1)
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk;
+          var num = document.createElement('div');
+          num.className = 'day-num' + (d === 5 ? ' sat' : '') + (d === 6 ? ' sun' : '') + (isT ? ' today-num' : '') + (out ? ' outside' : '');
+          num.style.gridColumn = String(d + 1);
+          num.style.gridRow = '1';
+          num.textContent = cd.getDate();
+          weekRow.appendChild(num);
+        }
+
+        // Layer 2: Multi-day bars (rows 2..laneCount+1)
+        visSpans.forEach(function (sp) {
+          var colStart = -1, colEnd = -1;
+          for (var d = 0; d < 7; d++) {
+            var dd = new Date(wDates[d].getFullYear(), wDates[d].getMonth(), wDates[d].getDate());
+            if (dd >= sp.sDay && dd <= sp.eDay) { if (colStart === -1) colStart = d; colEnd = d; }
+          }
+          if (colStart === -1) return;
+          var bar = document.createElement('div');
+          bar.className = 'multi-bar ec' + (sp.ev.color || '0');
+          if (sp.ev.bgColor) bar.style.backgroundColor = sp.ev.bgColor;
+          bar.style.gridColumn = (colStart + 1) + ' / ' + (colEnd + 2);
+          bar.style.gridRow = String(laneMap[sp.lane] + 2);
+          var isS = sp.sDay >= wStart, isE = sp.eDay <= wEnd;
+          if (isS) bar.classList.add('start');
+          if (isE) bar.classList.add('end');
+          bar.textContent = sp.ev.title || '(無題)';
+          bar.title = sp.ev.title + (sp.ev.location ? ' — ' + sp.ev.location : '');
+          (function (ev) { bar.addEventListener('click', function (e) { e.stopPropagation(); openEdit(ev); }); })(sp.ev);
+          weekRow.appendChild(bar);
+        });
+
+        // Layer 3: Single-day event containers (last row)
+        var evRowNum = laneCount + 2;
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate();
+          var dayEvs = (singleMap[dk] || []).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+          if (dayEvs.length > 0 && !out) {
+            var evc = document.createElement('div');
+            evc.className = 'day-events';
+            evc.style.gridColumn = String(d + 1);
+            evc.style.gridRow = String(evRowNum);
+            var dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
+            if (dm > 0) {
+              dayEvs.slice(0, dm).forEach(function (ev) {
+                var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+                if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
+                var st = new Date(ev.start);
+                var t = document.createElement('span'); t.className = 'ev-time';
+                t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
+                pill.appendChild(t);
+                pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+                (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+                evc.appendChild(pill);
+              });
+              if (dayEvs.length > dm) {
+                var restEvs = dayEvs.slice(dm);
+                var moreId = 'more-' + w + '-' + d;
+                var m = document.createElement('div'); m.className = 'more-ev'; m.id = moreId;
+                m.textContent = '他 ' + restEvs.length + ' 件';
+                m.setAttribute('data-rest', JSON.stringify(restEvs.map(function (ev) { return { color: ev.color || '0', bgColor: ev.bgColor || '', start: ev.start, title: ev.title, id: ev.id, calendarId: ev.calendarId, end: ev.end, allDay: ev.allDay, location: ev.location, description: ev.description, readOnly: ev.readOnly }; })));
+                m.setAttribute('onclick', 'expandMore(this,event)');
+                evc.appendChild(m);
+              }
+            }
+            var dots = document.createElement('div'); dots.className = 'ev-dots';
+            dayEvs.slice(0, 5).forEach(function (ev) {
+              var dot = document.createElement('div'); dot.className = 'ev-dot dot-' + (ev.color || '0'); dot.title = ev.title;
+              (function (d) { dot.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+              dots.appendChild(dot);
+            });
+            evc.appendChild(dots);
+            weekRow.appendChild(evc);
+          }
+        }
+        grid.appendChild(weekRow);
+      }
+    }
+
+    // ════════════════════
+    //  NAV
+    // ════════════════════
+    function goNext() { curMonth++; if (curMonth > 11) { curMonth = 0; curYear++; } loadMonth(); }
+    function goPrev() { curMonth--; if (curMonth < 0) { curMonth = 11; curYear--; } loadMonth(); }
+    function goToday() { curYear = new Date().getFullYear(); curMonth = new Date().getMonth(); cache = {}; loadMonth(); }
+
+    // ════════════════════
+    //  COLOR PICKER
+    // ════════════════════
+    // ════════════════════
+    //  MODAL
+    // ════════════════════
+    function buildCalendarSelect(selectedId) {
+      var sel = document.getElementById('fCalendar');
+      sel.innerHTML = '';
+      var writable = calendarList.filter(function (c) { return c.accessRole === 'owner' || c.accessRole === 'writer'; });
+      if (writable.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = 'primary'; opt.textContent = 'メインカレンダー';
+        sel.appendChild(opt);
+        return;
+      }
+      writable.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.summary;
+        if (c.id === selectedId || (!selectedId && c.primary)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function openCreate(date) {
+      editingEvent = null;
+      document.getElementById('modalTitleText').textContent = '新規予定';
+      document.getElementById('btnDelete').style.display = 'none';
+      document.getElementById('btnSave').textContent = '作成';
+      document.getElementById('fTitle').value = ''; document.getElementById('fLocation').value = ''; document.getElementById('fDesc').value = '';
+      document.getElementById('fAllDay').checked = false; toggleAllDayUI(false);
+      buildCalendarSelect(null);
+      document.getElementById('fCalendarField').style.display = '';
+      var d = date || new Date(), ds = fmtDate(d);
+      document.getElementById('fStart').value = ds + ' 09:00'; document.getElementById('fEnd').value = ds + ' 10:00';
+      document.getElementById('fStartDate').value = ds; document.getElementById('fEndDate').value = ds;
+      document.getElementById('modalOverlay').classList.add('show');
+      setTimeout(function () { document.getElementById('fTitle').focus(); }, 100);
+    }
+    function openEdit(ev) {
+      if (ev.readOnly) { toast('この予定は読み取り専用です'); return; }
+      editingEvent = ev;
+      document.getElementById('modalTitleText').textContent = '予定を編集';
+      document.getElementById('btnDelete').style.display = '';
+      document.getElementById('btnSave').textContent = '更新';
+      document.getElementById('fTitle').value = ev.title || ''; document.getElementById('fLocation').value = ev.location || '';
+      document.getElementById('fDesc').value = ev.description || '';
+      document.getElementById('fAllDay').checked = ev.allDay; toggleAllDayUI(ev.allDay);
+      buildCalendarSelect(ev.calendarId);
+      document.getElementById('fCalendarField').style.display = '';
+      if (ev.allDay) { var s = new Date(ev.start), e = new Date(ev.end); e.setDate(e.getDate() - 1); document.getElementById('fStartDate').value = fmtDate(s); document.getElementById('fEndDate').value = fmtDate(e); }
+      else { document.getElementById('fStart').value = fmtDT(new Date(ev.start)); document.getElementById('fEnd').value = fmtDT(new Date(ev.end)); }
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; deleteConfirmed = false; var db = document.getElementById('btnDelete'); db.textContent = '削除'; db.disabled = false; }
+    function toggleAllDay() { var cb = document.getElementById('fAllDay'); cb.checked = !cb.checked; toggleAllDayUI(cb.checked); }
+    function toggleAllDayUI(v) { document.getElementById('dateTimeFields').style.display = v ? 'none' : ''; document.getElementById('allDayFields').style.display = v ? '' : 'none'; }
+
+    // ════════════════════
+    //  SAVE (client fetch)
+    // ════════════════════
+    function doSave() {
+      var title = document.getElementById('fTitle').value.trim();
+      if (!title) { toast('タイトルを入力してください', true); return; }
+      var allDay = document.getElementById('fAllDay').checked;
+      var btn = document.getElementById('btnSave'), orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '保存中...';
+
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      var body = { summary: title };
+      if (allDay) {
+        var endVal = document.getElementById('fEndDate').value || document.getElementById('fStartDate').value;
+        var endD = new Date(endVal); endD.setDate(endD.getDate() + 1);
+        var endExcl = endD.getFullYear() + '-' + String(endD.getMonth() + 1).padStart(2, '0') + '-' + String(endD.getDate()).padStart(2, '0');
+        body.start = { date: document.getElementById('fStartDate').value };
+        body.end = { date: endExcl };
+      } else {
+        body.start = { dateTime: new Date(document.getElementById('fStart').value.replace(' ', 'T')).toISOString(), timeZone: tz };
+        body.end = { dateTime: new Date(document.getElementById('fEnd').value.replace(' ', 'T')).toISOString(), timeZone: tz };
+      }
+      var loc = document.getElementById('fLocation').value; if (loc) body.location = loc;
+      var desc = document.getElementById('fDesc').value; if (desc) body.description = desc;
+
+
+      var calId = document.getElementById('fCalendar').value || 'primary';
+      var url, method;
+      if (editingEvent) {
+        var oldCalId = editingEvent.calendarId || 'primary';
+        var calChanged = calId !== oldCalId;
+
+        // If calendar changed, move first then patch
+        var movePromise = calChanged
+          ? apiFetch(API + '/calendars/' + encodeURIComponent(oldCalId) + '/events/' + encodeURIComponent(editingEvent.id) + '/move?destination=' + encodeURIComponent(calId), { method: 'POST' })
+          : Promise.resolve(null);
+
+        movePromise.then(function () {
+          var patchCal = calChanged ? calId : oldCalId;
+          return apiFetch(API + '/calendars/' + encodeURIComponent(patchCal) + '/events/' + encodeURIComponent(editingEvent.id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        }).then(function () {
+          btn.disabled = false; btn.textContent = orig;
+          toast('予定を更新しました'); cache = {}; closeModal(); loadMonth();
+        }).catch(function (e) { btn.disabled = false; btn.textContent = orig; toast('保存失敗: ' + e.message, true); });
+      } else {
+        url = API + '/calendars/' + encodeURIComponent(calId) + '/events';
+        method = 'POST';
+        apiFetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+          .then(function () {
+            btn.disabled = false; btn.textContent = orig;
+            toast('予定を作成しました'); cache = {}; closeModal(); loadMonth();
+          })
+          .catch(function (e) { btn.disabled = false; btn.textContent = orig; toast('保存失敗: ' + e.message, true); });
+      }
+    }
+
+    // ════════════════════
+    //  DELETE (client fetch)
+    // ════════════════════
+    var deleteConfirmed = false;
+    function doDelete() {
+      if (!editingEvent) return;
+      var btn = document.getElementById('btnDelete');
+      if (!deleteConfirmed) {
+        deleteConfirmed = true;
+        btn.textContent = '本当に削除？';
+        btn.style.opacity = '1';
+        setTimeout(function () { if (deleteConfirmed) { deleteConfirmed = false; btn.textContent = '削除'; } }, 3000);
+        return;
+      }
+      deleteConfirmed = false;
+      btn.disabled = true; btn.textContent = '削除中...';
+      var url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || 'primary') + '/events/' + encodeURIComponent(editingEvent.id);
+      apiFetch(url, { method: 'DELETE' })
+        .then(function () { btn.disabled = false; btn.textContent = '削除'; toast('予定を削除しました'); cache = {}; closeModal(); loadMonth(); })
+        .catch(function (e) { btn.disabled = false; btn.textContent = '削除'; toast('削除失敗: ' + e.message, true); });
+    }
+
+    // ════════════════════
+    //  HELPERS
+    // ════════════════════
+    function expandMore(el, e) {
+      e.stopPropagation();
+      var container = el.parentNode;
+      var rest = JSON.parse(el.getAttribute('data-rest'));
+      el.remove();
+      rest.forEach(function (ev) {
+        var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+        if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
+        var st = new Date(ev.start);
+        var t = document.createElement('span'); t.className = 'ev-time';
+        t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
+        pill.appendChild(t);
+        pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+        pill.setAttribute('onclick', 'event.stopPropagation(); openEdit(' + JSON.stringify(ev).replace(/'/g, "\\'") + ')');
+        container.appendChild(pill);
+      });
+    }
+
+    function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function fmtDT(d) { return fmtDate(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function toast(msg, isErr) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (isErr ? ' error' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
+
+    // ════════════════════
+    //  CALENDAR LIST
+    // ════════════════════
+    var CAL_COLORS = { '1': '#7986cb', '2': '#33b679', '3': '#8e24aa', '4': '#e67c73', '5': '#f6bf26', '6': '#f4511e', '7': '#039be5', '8': '#616161', '9': '#3f51b5', '10': '#0b8043', '11': '#d50000', '12': '#f09300', '13': '#009688', '14': '#795548', '15': '#c2185b', '16': '#6a1b9a', '17': '#e8453c', '18': '#2196f3', '19': '#4caf50', '20': '#ff9800', '21': '#607d8b', '22': '#9e9d24', '23': '#1565c0', '24': '#ad1457' };
+
+    function fetchCalendarList() {
+      return apiFetch(API + '/users/me/calendarList').then(function (data) {
+        calendarList = (data.items || []).map(function (c) {
+          return { id: c.id, summary: c.summary || c.id, colorId: c.colorId || '1', bgColor: c.backgroundColor || CAL_COLORS[c.colorId] || '#4b7cf3', accessRole: c.accessRole, primary: !!c.primary };
+        });
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem('cal_enabled')); } catch (e) { }
+        if (saved && typeof saved === 'object') {
+          enabledCalendars = saved;
+          calendarList.forEach(function (c) { if (!(c.id in enabledCalendars)) enabledCalendars[c.id] = true; });
+        } else {
+          enabledCalendars = {};
+          calendarList.forEach(function (c) { enabledCalendars[c.id] = true; });
+        }
+        renderCalPanel();
+      }).catch(function () {
+        calendarList = [{ id: 'primary', summary: 'メインカレンダー', colorId: '1', bgColor: '#4b7cf3', accessRole: 'owner', primary: true }];
+        enabledCalendars = { primary: true };
+        renderCalPanel();
+      });
+    }
+
+    function renderCalPanel() {
+      var mineEl = document.getElementById('calListMine');
+      var otherEl = document.getElementById('calListOther');
+      mineEl.innerHTML = '<div class="cal-section-title">マイカレンダー</div>';
+      otherEl.innerHTML = '';
+      var hasOther = false;
+      calendarList.forEach(function (c) {
+        var isOwned = c.accessRole === 'owner' || c.accessRole === 'writer' || c.primary;
+        var container = isOwned ? mineEl : otherEl;
+        if (!isOwned && !hasOther) { otherEl.innerHTML = '<div class="cal-section-title">他のカレンダー</div>'; hasOther = true; }
+        var item = document.createElement('div');
+        item.className = 'cal-item' + (enabledCalendars[c.id] ? ' active' : '');
+        item.innerHTML = '<div class="cal-item-color" style="background:' + c.bgColor + '"></div><div class="cal-item-name">' + escHtml(c.summary) + '</div><div class="cal-item-check"></div>';
+        (function (calId) {
+          item.addEventListener('click', function () {
+            enabledCalendars[calId] = !enabledCalendars[calId];
+            item.classList.toggle('active');
+            try { localStorage.setItem('cal_enabled', JSON.stringify(enabledCalendars)); } catch (e) { }
+            cache = {}; loadMonth();
+          });
+        })(c.id);
+        container.appendChild(item);
+      });
+    }
+
+    function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function openCalPanel() { document.getElementById('calPanelOverlay').classList.add('show'); }
+    function closeCalPanel() { document.getElementById('calPanelOverlay').classList.remove('show'); }
+
+    var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { var k = curYear + '-' + curMonth; if (cache[k]) render(cache[k]); }, 150); });
+    document.getElementById('modalOverlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.getElementById('calPanelOverlay').addEventListener('click', function (e) { if (e.target === this) closeCalPanel(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeModal(); closeCalPanel(); } });
+
+    initGIS();
+  </script>
+</body>
+
+</html>
