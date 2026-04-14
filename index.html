@@ -1354,8 +1354,8 @@
       var t = document.getElementById('fToken').value.trim();
       if (!t) { toast('トークンを貼り付けてください', true); return; }
       accessToken = t;
-      hasFullCalScope = false;
-      saveToken(t, '');
+      hasFullCalScope = true;
+      saveToken(t, 'https://www.googleapis.com/auth/calendar');
       onLoggedIn();
     }
 
