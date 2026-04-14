@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendar Widget</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+      --bg: #191919;
+      --bg2: #212121;
+      --bg3: #272727;
+      --bg-hover: #2e2e2e;
+      --bg-today: rgba(55, 110, 240, 0.14);
+      --accent: #4b7cf3;
+      --accent-hover: #5d8bf5;
+      --danger: #e84057;
+      --danger-hover: #f05068;
+      --text: #e8e8e8;
+      --text2: #999;
+      --text3: #666;
+      --border: #333;
+      --overlay: rgba(0, 0, 0, 0.6);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --cell-min-h: 80px;
+      --header-fs: 22px;
+      --day-fs: 13px;
+      --ev-fs: 12px;
+      --ev-time-fs: 10px;
+      --widget-pad: 20px;
+      --grid-gap: 3px;
+      --cell-pad: 5px 6px;
+      --day-size: 26px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      overflow-y: auto;
+      height: 100%;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .widget {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      padding: var(--widget-pad);
+      gap: 14px;
+    }
+
+    /* Login */
+    .login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .login-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .login-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .login-desc {
+      font-size: 13px;
+      color: var(--text2);
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    .login-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 28px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg2);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    .login-btn:hover {
+      background: var(--bg-hover);
+      border-color: #555;
+    }
+
+    .login-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* User bar */
+    .user-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg2);
+      border-radius: var(--radius);
+      font-size: 12px;
+      color: var(--text2);
+      flex-shrink: 0;
+    }
+
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--bg3);
+    }
+
+    .user-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-logout {
+      border: none;
+      background: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+
+    .user-logout:hover {
+      color: var(--text);
+      background: var(--bg3);
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .month-title {
+      font-size: var(--header-fs);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .year-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      height: 34px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--bg3);
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-family: 'Noto Sans JP', sans-serif;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-nav {
+      width: 34px;
+      font-size: 18px;
+    }
+
+    .btn-today {
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .btn-add {
+      padding: 0 14px;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--accent);
+      color: #fff;
+      gap: 4px;
+    }
+
+    .btn-add:hover {
+      background: var(--accent-hover);
+      color: #fff;
+    }
+
+    /* Grid */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--grid-gap);
+      flex: 1;
+      min-height: 0;
+    }
+
+    .dow {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text3);
+      text-align: center;
+      padding: 4px 0 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .dow.sat {
+      color: #5588cc;
+    }
+
+    .dow.sun {
+      color: #cc5555;
+    }
+
+    .day-cell {
+      background: var(--bg2);
+      border-radius: var(--radius-sm);
+      padding: var(--cell-pad);
+      min-height: var(--cell-min-h);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: background 0.12s;
+      cursor: pointer;
+    }
+
+    .day-cell:hover {
+      background: var(--bg-hover);
+    }
+
+    .day-cell.outside {
+      background: transparent;
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    .day-cell.today {
+      background: var(--bg-today);
+      box-shadow: inset 0 0 0 1.5px rgba(75, 124, 243, 0.35);
+    }
+
+    .day-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--day-fs);
+      font-weight: 400;
+      color: var(--text2);
+      width: var(--day-size);
+      height: var(--day-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-bottom: 3px;
+    }
+
+    .today .day-num {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .day-num.sat {
+      color: #6699dd;
+    }
+
+    .day-num.sun {
+      color: #dd6666;
+    }
+
+    .ev-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .ev-pill {
+      font-size: var(--ev-fs);
+      line-height: 1.35;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+
+    .ev-pill:hover {
+      opacity: 0.75;
+    }
+
+    .ev-pill.allday {
+      font-weight: 600;
+    }
+
+    .ev-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: var(--ev-time-fs);
+      opacity: 0.7;
+      margin-right: 4px;
+    }
+
+    .more-ev {
+      font-size: 11px;
+      color: var(--text3);
+      padding: 2px 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .ev-dots {
+      display: none;
+      flex-wrap: wrap;
+      gap: 3px;
+      padding-top: 2px;
+    }
+
+    .ev-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .ec0,
+    .ec1 {
+      background: rgba(75, 124, 243, 0.2);
+      color: #8ab4ff;
+    }
+
+    .ec2 {
+      background: rgba(35, 165, 90, 0.2);
+      color: #5ec98a;
+    }
+
+    .ec3 {
+      background: rgba(156, 89, 182, 0.2);
+      color: #c49bdb;
+    }
+
+    .ec4 {
+      background: rgba(232, 64, 87, 0.2);
+      color: #f08090;
+    }
+
+    .ec5 {
+      background: rgba(240, 178, 50, 0.2);
+      color: #f0c060;
+    }
+
+    .ec6 {
+      background: rgba(230, 126, 34, 0.2);
+      color: #f0a060;
+    }
+
+    .ec7 {
+      background: rgba(0, 180, 216, 0.2);
+      color: #60d0e8;
+    }
+
+    .ec8 {
+      background: rgba(120, 120, 120, 0.2);
+      color: #aaa;
+    }
+
+    .ec9 {
+      background: rgba(75, 124, 243, 0.2);
+      color: #8ab4ff;
+    }
+
+    .ec10 {
+      background: rgba(35, 165, 90, 0.2);
+      color: #5ec98a;
+    }
+
+    .ec11 {
+      background: rgba(232, 67, 147, 0.2);
+      color: #f090b8;
+    }
+
+    .dot-0,
+    .dot-1 {
+      background: #4b7cf3;
+    }
+
+    .dot-2 {
+      background: #23a55a;
+    }
+
+    .dot-3 {
+      background: #9b59b6;
+    }
+
+    .dot-4 {
+      background: #e84057;
+    }
+
+    .dot-5 {
+      background: #f0b232;
+    }
+
+    .dot-6 {
+      background: #e67e22;
+    }
+
+    .dot-7 {
+      background: #00b4d8;
+    }
+
+    .dot-8 {
+      background: #888;
+    }
+
+    .dot-10 {
+      background: #23a55a;
+    }
+
+    .dot-11 {
+      background: #e84393;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      z-index: 900;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 420px;
+      max-width: 100%;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      padding: 24px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-close {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 50%;
+      background: var(--bg3);
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .field-row .field {
+      flex: 1;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+
+    .check-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .check-row span {
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .color-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .color-dot:hover {
+      transform: scale(1.15);
+    }
+
+    .color-dot.active {
+      border-color: #fff;
+      transform: scale(1.15);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .modal-btn:active {
+      transform: scale(0.96);
+    }
+
+    .modal-btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .modal-btn.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .modal-btn.cancel {
+      background: var(--bg3);
+      color: var(--text2);
+    }
+
+    .modal-btn.cancel:hover {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    .modal-btn.danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .modal-btn.danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .modal-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .modal-btn.delete-left {
+      margin-right: auto;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+
+    .loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .ldot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin: 0 4px;
+      animation: lp 1.2s ease-in-out infinite;
+    }
+
+    .ldot:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .ldot:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    @keyframes lp {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0.5);
+        opacity: 0.3;
+      }
+
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media(max-width:500px) {
+      :root {
+        --cell-min-h: 52px;
+        --header-fs: 18px;
+        --day-fs: 11px;
+        --ev-fs: 10px;
+        --ev-time-fs: 9px;
+        --widget-pad: 12px;
+        --grid-gap: 2px;
+        --cell-pad: 3px 4px;
+        --day-size: 22px;
+      }
+
+      .btn {
+        height: 30px;
+      }
+
+      .btn-nav {
+        width: 30px;
+        font-size: 16px;
+      }
+
+      .btn-today {
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      .btn-add {
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      .year-label {
+        font-size: 12px;
+      }
+
+      .ev-pill {
+        padding: 2px 4px;
+      }
+
+      .modal {
+        padding: 18px;
+      }
+
+      .field-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .user-bar {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .user-avatar {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    @media(max-width:380px) {
+      :root {
+        --cell-min-h: 44px;
+        --header-fs: 16px;
+        --day-fs: 10px;
+        --widget-pad: 8px;
+        --cell-pad: 2px 3px;
+        --day-size: 20px;
+      }
+
+      .ev-list {
+        display: none !important;
+      }
+
+      .ev-dots {
+        display: flex !important;
+      }
+
+      .more-ev {
+        display: none;
+      }
+
+      .btn-today span {
+        display: none;
+      }
+
+      .btn-add span.label {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-screen" id="loginScreen">
+    <div class="login-icon">📅</div>
+    <div class="login-title">カレンダーウィジェット</div>
+    <div class="login-desc">Googleアカウントでログインすると、あなたのGoogle Calendarの予定を表示・管理できます。</div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335"
+          d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+        <path fill="#4285F4"
+          d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+        <path fill="#FBBC05"
+          d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+        <path fill="#34A853"
+          d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+      </svg>
+      Googleでログイン
+    </button>
+  </div>
+
+  <div class="widget" id="widget" style="display:none">
+    <div class="loader" id="loader">
+      <div class="ldot"></div>
+      <div class="ldot"></div>
+      <div class="ldot"></div>
+    </div>
+    <div class="user-bar" id="userBar">
+      <img class="user-avatar" id="userAvatar" src="" alt="">
+      <span class="user-name" id="userName">ログイン中...</span>
+      <button class="user-logout" onclick="doLogout()">ログアウト</button>
+    </div>
+    <div class="header">
+      <div class="header-left">
+        <span class="month-title" id="monthTitle"></span>
+        <span class="year-label" id="yearLabel"></span>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn btn-add" onclick="openCreate()">＋ <span class="label">追加</span></button>
+        <button class="btn btn-today" onclick="goToday()"><span>今日</span></button>
+        <button class="btn btn-nav" onclick="goPrev()">‹</button>
+        <button class="btn btn-nav" onclick="goNext()">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-title">
+        <span id="modalTitleText">新規予定</span>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="field"><label>タイトル</label><input type="text" id="fTitle" placeholder="予定のタイトル"></div>
+      <div class="check-row" onclick="toggleAllDay()"><input type="checkbox" id="fAllDay"><span>終日</span></div>
+      <div id="dateTimeFields">
+        <div class="field-row">
+          <div class="field"><label>開始日時</label><input type="datetime-local" id="fStart"></div>
+          <div class="field"><label>終了日時</label><input type="datetime-local" id="fEnd"></div>
+        </div>
+      </div>
+      <div id="allDayFields" style="display:none">
+        <div class="field-row">
+          <div class="field"><label>開始日</label><input type="date" id="fStartDate"></div>
+          <div class="field"><label>終了日</label><input type="date" id="fEndDate"></div>
+        </div>
+      </div>
+      <div class="field"><label>場所</label><input type="text" id="fLocation" placeholder="場所（任意）"></div>
+      <div class="field"><label>メモ</label><textarea id="fDesc" placeholder="メモ（任意）"></textarea></div>
+      <div class="field"><label>カラー</label>
+        <div class="color-picker" id="colorPicker"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn danger delete-left" id="btnDelete" style="display:none"
+          onclick="doDelete()">削除</button>
+        <button class="modal-btn cancel" onclick="closeModal()">キャンセル</button>
+        <button class="modal-btn primary" id="btnSave" onclick="doSave()">保存</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- GIS: ポップアップ方式でトークン取得。オリジン制約なし -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script>
+    // ╔═══════════════════════════════════════════════╗
+    // ║  ★ ここにあなたのクライアントIDを設定 ★        ║
+    // ╚═══════════════════════════════════════════════╝
+    var CLIENT_ID = '864100893514-c5iggvkc1vlbk9g54mv65j5cqrsi77sn.apps.googleusercontent.com';
+
+    var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+    var API = 'https://www.googleapis.com/calendar/v3';
+    var MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    var DOW = ['月', '火', '水', '木', '金', '土', '日'];
+    var MAX_EV = 3;
+    var COLOR_MAP = [
+      { id: '1', bg: '#4b7cf3' }, { id: '2', bg: '#23a55a' }, { id: '3', bg: '#9b59b6' }, { id: '4', bg: '#e84057' },
+      { id: '5', bg: '#f0b232' }, { id: '6', bg: '#e67e22' }, { id: '7', bg: '#00b4d8' }, { id: '8', bg: '#888' }, { id: '11', bg: '#e84393' },
+    ];
+
+    var curYear, curMonth, cache = {}, editingEvent = null, selectedColor = '1';
+    var accessToken = null, tokenClient = null;
+
+    // ════════════════════
+    //  AUTH (client-only)
+    // ════════════════════
+    function initGIS() {
+      if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 200); return; }
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: onToken,
+      });
+      var t = sessionStorage.getItem('cal_token');
+      if (t) { accessToken = t; onLoggedIn(); }
+    }
+
+    function doLogin() {
+      if (!tokenClient) { toast('認証の準備中...', true); return; }
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+
+    function onToken(resp) {
+      if (resp.error) { toast('ログイン失敗: ' + resp.error, true); return; }
+      accessToken = resp.access_token;
+      sessionStorage.setItem('cal_token', accessToken);
+      onLoggedIn();
+    }
+
+    function onLoggedIn() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('widget').style.display = 'flex';
+      fetchUser();
+      curYear = new Date().getFullYear();
+      curMonth = new Date().getMonth();
+      buildColorPicker();
+      loadMonth();
+    }
+
+    function doLogout() {
+      if (accessToken) google.accounts.oauth2.revoke(accessToken, function () { });
+      accessToken = null;
+      sessionStorage.removeItem('cal_token');
+      cache = {};
+      document.getElementById('widget').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    // ════════════════════
+    //  API HELPERS
+    // ════════════════════
+    function apiFetch(url, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'Authorization': 'Bearer ' + accessToken }, opts.headers || {});
+      return fetch(url, opts).then(function (r) {
+        if (r.status === 401) { toast('セッション切れ。再ログインしてください。', true); doLogout(); throw new Error('401'); }
+        if (r.status === 204) return null;
+        return r.json();
+      });
+    }
+
+    function fetchUser() {
+      apiFetch('https://www.googleapis.com/oauth2/v2/userinfo')
+        .then(function (u) {
+          if (u) {
+            document.getElementById('userName').textContent = u.name || u.email;
+            if (u.picture) document.getElementById('userAvatar').src = u.picture;
+          }
+        }).catch(function () { });
+    }
+
+    // ════════════════════
+    //  CALENDAR DATA
+    // ════════════════════
+    function loadMonth() {
+      var key = curYear + '-' + curMonth;
+      document.getElementById('monthTitle').textContent = MONTHS[curMonth];
+      document.getElementById('yearLabel').textContent = curYear + '年';
+      if (cache[key]) { render(cache[key]); return; }
+
+      var sf = new Date(curYear, curMonth, 1); sf.setDate(sf.getDate() - 7);
+      var ef = new Date(curYear, curMonth + 1, 0); ef.setDate(ef.getDate() + 7);
+
+      var url = API + '/calendars/primary/events?'
+        + 'timeMin=' + encodeURIComponent(sf.toISOString())
+        + '&timeMax=' + encodeURIComponent(ef.toISOString())
+        + '&singleEvents=true&orderBy=startTime&maxResults=250';
+
+      apiFetch(url)
+        .then(function (data) {
+          var events = (data.items || []).map(function (ev) {
+            var ad = !!ev.start.date;
+            return {
+              id: ev.id, title: ev.summary || '',
+              start: ad ? ev.start.date + 'T00:00:00' : ev.start.dateTime,
+              end: ad ? ev.end.date + 'T00:00:00' : ev.end.dateTime,
+              allDay: ad, color: ev.colorId || '0',
+              location: ev.location || '',
+              description: (ev.description || '').substring(0, 200)
+            };
+          });
+          cache[key] = events;
+          render(events);
+          document.getElementById('loader').classList.add('hidden');
+        })
+        .catch(function () {
+          cache[key] = []; render([]);
+          document.getElementById('loader').classList.add('hidden');
+        });
+    }
+
+    function render(events) {
+      var grid = document.getElementById('calGrid');
+      grid.innerHTML = '';
+      DOW.forEach(function (d, i) {
+        var el = document.createElement('div');
+        el.className = 'dow' + (i === 5 ? ' sat' : '') + (i === 6 ? ' sun' : '');
+        el.textContent = d; grid.appendChild(el);
+      });
+
+      var first = new Date(curYear, curMonth, 1), last = new Date(curYear, curMonth + 1, 0);
+      var dim = last.getDate(), sd = first.getDay(); sd = sd === 0 ? 6 : sd - 1;
+      var now = new Date(), tk = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate();
+
+      var de = {};
+      events.forEach(function (ev) {
+        var s = new Date(ev.start), e = new Date(ev.end);
+        if (ev.allDay) { var d = new Date(s); while (d < e) { var k = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); d.setDate(d.getDate() + 1); } }
+        else { var k = s.getFullYear() + '-' + s.getMonth() + '-' + s.getDate(); if (!de[k]) de[k] = []; de[k].push(ev); }
+      });
+
+      var cw = grid.clientWidth, dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
+
+      for (var i = 0; i < 42; i++) {
+        var dn = i - sd + 1, cd = new Date(curYear, curMonth, dn), out = dn < 1 || dn > dim;
+        var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk, di = i % 7;
+        var cell = document.createElement('div');
+        cell.className = 'day-cell' + (out ? ' outside' : '') + (isT ? ' today' : '');
+        (function (date, isOut) {
+          cell.addEventListener('click', function (e) {
+            if (isOut) return; if (e.target.classList.contains('ev-pill') || e.target.closest('.ev-pill')) return;
+            if (e.target.classList.contains('ev-dot')) return; openCreate(date);
+          });
+        })(new Date(cd), out);
+        var num = document.createElement('div');
+        num.className = 'day-num' + (di === 5 ? ' sat' : '') + (di === 6 ? ' sun' : '');
+        num.textContent = cd.getDate(); cell.appendChild(num);
+        var evs = (de[dk] || []).sort(function (a, b) { if (a.allDay && !b.allDay) return -1; if (!a.allDay && b.allDay) return 1; return new Date(a.start) - new Date(b.start); });
+        if (evs.length > 0) {
+          var cont = document.createElement('div'); cont.className = 'ev-list';
+          evs.slice(0, dm).forEach(function (ev) {
+            var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0') + (ev.allDay ? ' allday' : '');
+            if (!ev.allDay) { var t = document.createElement('span'); t.className = 'ev-time'; var st = new Date(ev.start); t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0'); pill.appendChild(t); }
+            pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+            (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+            cont.appendChild(pill);
+          });
+          if (evs.length > dm && dm > 0) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (evs.length - dm) + ' 件'; cont.appendChild(m); }
+          cell.appendChild(cont);
+          var dots = document.createElement('div'); dots.className = 'ev-dots';
+          evs.slice(0, 5).forEach(function (ev) {
+            var dot = document.createElement('div'); dot.className = 'ev-dot dot-' + (ev.color || '0'); dot.title = ev.title;
+            (function (d) { dot.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
+            dots.appendChild(dot);
+          });
+          cell.appendChild(dots);
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    // ════════════════════
+    //  NAV
+    // ════════════════════
+    function goNext() { curMonth++; if (curMonth > 11) { curMonth = 0; curYear++; } loadMonth(); }
+    function goPrev() { curMonth--; if (curMonth < 0) { curMonth = 11; curYear--; } loadMonth(); }
+    function goToday() { curYear = new Date().getFullYear(); curMonth = new Date().getMonth(); cache = {}; loadMonth(); }
+
+    // ════════════════════
+    //  COLOR PICKER
+    // ════════════════════
+    function buildColorPicker() {
+      var cp = document.getElementById('colorPicker'); cp.innerHTML = '';
+      COLOR_MAP.forEach(function (c) {
+        var dot = document.createElement('div'); dot.className = 'color-dot' + (c.id === selectedColor ? ' active' : '');
+        dot.style.background = c.bg; dot.setAttribute('data-color', c.id);
+        dot.addEventListener('click', function () { selectedColor = c.id; document.querySelectorAll('.color-dot').forEach(function (d) { d.classList.remove('active'); }); dot.classList.add('active'); });
+        cp.appendChild(dot);
+      });
+    }
+    function setActiveColor(cid) { selectedColor = cid || '1'; document.querySelectorAll('.color-dot').forEach(function (d) { d.classList.toggle('active', d.getAttribute('data-color') === selectedColor); }); }
+
+    // ════════════════════
+    //  MODAL
+    // ════════════════════
+    function openCreate(date) {
+      editingEvent = null;
+      document.getElementById('modalTitleText').textContent = '新規予定';
+      document.getElementById('btnDelete').style.display = 'none';
+      document.getElementById('btnSave').textContent = '作成';
+      document.getElementById('fTitle').value = ''; document.getElementById('fLocation').value = ''; document.getElementById('fDesc').value = '';
+      document.getElementById('fAllDay').checked = false; toggleAllDayUI(false); setActiveColor('1');
+      var d = date || new Date(), ds = fmtDate(d);
+      document.getElementById('fStart').value = ds + 'T09:00'; document.getElementById('fEnd').value = ds + 'T10:00';
+      document.getElementById('fStartDate').value = ds; document.getElementById('fEndDate').value = ds;
+      document.getElementById('modalOverlay').classList.add('show');
+      setTimeout(function () { document.getElementById('fTitle').focus(); }, 100);
+    }
+    function openEdit(ev) {
+      editingEvent = ev;
+      document.getElementById('modalTitleText').textContent = '予定を編集';
+      document.getElementById('btnDelete').style.display = '';
+      document.getElementById('btnSave').textContent = '更新';
+      document.getElementById('fTitle').value = ev.title || ''; document.getElementById('fLocation').value = ev.location || '';
+      document.getElementById('fDesc').value = ev.description || '';
+      document.getElementById('fAllDay').checked = ev.allDay; toggleAllDayUI(ev.allDay); setActiveColor(ev.color);
+      if (ev.allDay) { var s = new Date(ev.start), e = new Date(ev.end); e.setDate(e.getDate() - 1); document.getElementById('fStartDate').value = fmtDate(s); document.getElementById('fEndDate').value = fmtDate(e); }
+      else { document.getElementById('fStart').value = fmtDT(new Date(ev.start)); document.getElementById('fEnd').value = fmtDT(new Date(ev.end)); }
+      document.getElementById('modalOverlay').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; }
+    function toggleAllDay() { var cb = document.getElementById('fAllDay'); cb.checked = !cb.checked; toggleAllDayUI(cb.checked); }
+    function toggleAllDayUI(v) { document.getElementById('dateTimeFields').style.display = v ? 'none' : ''; document.getElementById('allDayFields').style.display = v ? '' : 'none'; }
+
+    // ════════════════════
+    //  SAVE (client fetch)
+    // ════════════════════
+    function doSave() {
+      var title = document.getElementById('fTitle').value.trim();
+      if (!title) { toast('タイトルを入力してください', true); return; }
+      var allDay = document.getElementById('fAllDay').checked;
+      var btn = document.getElementById('btnSave'), orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '保存中...';
+
+      var body = { summary: title };
+      if (allDay) {
+        body.start = { date: document.getElementById('fStartDate').value };
+        body.end = { date: document.getElementById('fEndDate').value || document.getElementById('fStartDate').value };
+      } else {
+        body.start = { dateTime: new Date(document.getElementById('fStart').value).toISOString() };
+        body.end = { dateTime: new Date(document.getElementById('fEnd').value).toISOString() };
+      }
+      var loc = document.getElementById('fLocation').value; if (loc) body.location = loc;
+      var desc = document.getElementById('fDesc').value; if (desc) body.description = desc;
+      if (selectedColor && selectedColor !== '0') body.colorId = selectedColor;
+
+      var url, method;
+      if (editingEvent) {
+        url = API + '/calendars/primary/events/' + encodeURIComponent(editingEvent.id);
+        method = 'PATCH';
+      } else {
+        url = API + '/calendars/primary/events';
+        method = 'POST';
+      }
+
+      apiFetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(function (res) {
+          btn.disabled = false; btn.textContent = orig;
+          if (res && res.id) { toast(editingEvent ? '予定を更新しました' : '予定を作成しました'); cache = {}; closeModal(); loadMonth(); }
+          else { toast('保存に失敗しました', true); }
+        })
+        .catch(function () { btn.disabled = false; btn.textContent = orig; toast('エラーが発生しました', true); });
+    }
+
+    // ════════════════════
+    //  DELETE (client fetch)
+    // ════════════════════
+    function doDelete() {
+      if (!editingEvent) return;
+      if (!confirm('この予定を削除しますか？')) return;
+      var btn = document.getElementById('btnDelete'); btn.disabled = true; btn.textContent = '削除中...';
+      var url = API + '/calendars/primary/events/' + encodeURIComponent(editingEvent.id);
+      apiFetch(url, { method: 'DELETE' })
+        .then(function () { btn.disabled = false; btn.textContent = '削除'; toast('予定を削除しました'); cache = {}; closeModal(); loadMonth(); })
+        .catch(function () { btn.disabled = false; btn.textContent = '削除'; toast('エラーが発生しました', true); });
+    }
+
+    // ════════════════════
+    //  HELPERS
+    // ════════════════════
+    function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function fmtDT(d) { return fmtDate(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function toast(msg, isErr) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (isErr ? ' error' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
+
+    var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { var k = curYear + '-' + curMonth; if (cache[k]) render(cache[k]); }, 150); });
+    document.getElementById('modalOverlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+    initGIS();
+  </script>
+</body>
+
+</html>
