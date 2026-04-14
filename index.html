@@ -281,90 +281,30 @@
 
     .week-row {
       flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .multi-lanes {
+      min-height: var(--cell-min-h);
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 2px var(--grid-gap);
-      grid-auto-rows: 22px;
-      padding-bottom: 2px;
+      gap: 0 var(--grid-gap);
     }
 
-    .multi-bar {
-      height: 20px;
-      font-size: 11px;
-      line-height: 20px;
-      padding: 0 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      cursor: pointer;
-      font-weight: 600;
-      color: #fff;
-      border-radius: 0;
-      transition: opacity 0.12s;
-    }
-
-    .multi-bar:hover {
-      opacity: 0.75;
-    }
-
-    .multi-bar.start {
-      border-top-left-radius: 4px;
-      border-bottom-left-radius: 4px;
-    }
-
-    .multi-bar.end {
-      border-top-right-radius: 4px;
-      border-bottom-right-radius: 4px;
-    }
-
-    .multi-bar.ec0, .multi-bar.ec1 { background: #4b7cf3; }
-    .multi-bar.ec2 { background: #23a55a; }
-    .multi-bar.ec3 { background: #9b59b6; }
-    .multi-bar.ec4 { background: #e84057; }
-    .multi-bar.ec5 { background: #d4a017; }
-    .multi-bar.ec6 { background: #e67e22; }
-    .multi-bar.ec7 { background: #00a0c0; }
-    .multi-bar.ec8 { background: #777; }
-    .multi-bar.ec9 { background: #3f51b5; }
-    .multi-bar.ec10 { background: #0b8043; }
-    .multi-bar.ec11 { background: #e84393; }
-
-    .week-days {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: var(--grid-gap);
-      flex: 1;
-    }
-
-    .day-cell {
+    .day-bg {
       background: var(--bg2);
       border-radius: var(--radius-sm);
-      padding: var(--cell-pad);
-      min-height: var(--cell-min-h);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transition: background 0.12s;
       cursor: pointer;
+      transition: background 0.12s;
     }
 
-    .day-cell:hover {
+    .day-bg:hover {
       background: var(--bg-hover);
     }
 
-    .day-cell.outside {
+    .day-bg.outside {
       background: transparent;
       opacity: 0.25;
       pointer-events: none;
     }
 
-    .day-cell.today {
+    .day-bg.today {
       background: var(--bg-today);
       box-shadow: inset 0 0 0 1.5px rgba(75, 124, 243, 0.35);
     }
@@ -380,11 +320,13 @@
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      flex-shrink: 0;
-      margin-bottom: 3px;
+      pointer-events: none;
+      z-index: 1;
+      padding: 2px;
+      margin: 3px 0 0 3px;
     }
 
-    .today .day-num {
+    .day-num.today-num {
       background: var(--accent);
       color: #fff;
       font-weight: 600;
@@ -396,6 +338,65 @@
 
     .day-num.sun {
       color: #dd6666;
+    }
+
+    .day-num.outside {
+      opacity: 0.25;
+    }
+
+    .multi-bar {
+      height: 20px;
+      font-size: 11px;
+      line-height: 20px;
+      padding: 0 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      font-weight: 600;
+      color: #fff;
+      border-radius: 0;
+      transition: opacity 0.12s;
+      z-index: 2;
+      margin: 1px 0;
+    }
+
+    .multi-bar:hover {
+      opacity: 0.75;
+    }
+
+    .multi-bar.start {
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+      margin-left: 2px;
+    }
+
+    .multi-bar.end {
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+      margin-right: 2px;
+    }
+
+    .multi-bar.ec0, .multi-bar.ec1 { background: #4b7cf3; }
+    .multi-bar.ec2 { background: #23a55a; }
+    .multi-bar.ec3 { background: #9b59b6; }
+    .multi-bar.ec4 { background: #e84057; }
+    .multi-bar.ec5 { background: #d4a017; }
+    .multi-bar.ec6 { background: #e67e22; }
+    .multi-bar.ec7 { background: #00a0c0; }
+    .multi-bar.ec8 { background: #777; }
+    .multi-bar.ec9 { background: #3f51b5; }
+    .multi-bar.ec10 { background: #0b8043; }
+    .multi-bar.ec11 { background: #e84393; }
+
+    .day-events {
+      z-index: 1;
+      padding: 0 4px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+      min-height: 0;
     }
 
     .ev-list {
@@ -874,10 +875,6 @@
         padding: 2px 4px;
       }
 
-      .multi-lanes {
-        grid-auto-rows: 18px;
-      }
-
       .multi-bar {
         height: 16px;
         font-size: 10px;
@@ -937,11 +934,6 @@
 
       .btn-cal-list span.label {
         display: none;
-      }
-
-      .multi-lanes {
-        grid-auto-rows: 16px;
-        gap: 1px var(--grid-gap);
       }
 
       .multi-bar {
@@ -1393,7 +1385,7 @@
 
       var maxLanes = cw < 380 ? 1 : (cw < 500 ? 2 : 3);
 
-      // Build 6 week rows
+      // Build 6 week rows — unified grid: day-bg + day-num + multi-bars + day-events
       for (var w = 0; w < 6; w++) {
         var weekRow = document.createElement('div');
         weekRow.className = 'week-row';
@@ -1405,64 +1397,78 @@
         // Spanning bars for this week
         var weekSpans = spanning.filter(function (sp) { return sp.sDay <= wEnd && sp.eDay >= wStart; });
         var visSpans = weekSpans.filter(function (sp) { return sp.lane < maxLanes; });
+        var usedLanes = [], laneMap = {};
+        visSpans.forEach(function (sp) { if (usedLanes.indexOf(sp.lane) === -1) usedLanes.push(sp.lane); });
+        usedLanes.sort(function (a, b) { return a - b; });
+        usedLanes.forEach(function (l, i) { laneMap[l] = i; });
+        var laneCount = usedLanes.length;
 
-        if (visSpans.length > 0) {
-          // Compact lanes: remove empty rows
-          var usedLanes = [];
-          visSpans.forEach(function (sp) { if (usedLanes.indexOf(sp.lane) === -1) usedLanes.push(sp.lane); });
-          usedLanes.sort(function (a, b) { return a - b; });
-          var laneMap = {};
-          usedLanes.forEach(function (l, i) { laneMap[l] = i + 1; });
+        // Grid rows: 1=day-num, 2..laneCount+1=bars, laneCount+2=events
+        var rowDef = 'auto';
+        for (var l = 0; l < laneCount; l++) rowDef += ' auto';
+        rowDef += ' 1fr';
+        weekRow.style.gridTemplateRows = rowDef;
 
-          var ml = document.createElement('div');
-          ml.className = 'multi-lanes';
-          visSpans.forEach(function (sp) {
-            var colStart = -1, colEnd = -1;
-            for (var d = 0; d < 7; d++) {
-              var dd = new Date(wDates[d].getFullYear(), wDates[d].getMonth(), wDates[d].getDate());
-              if (dd >= sp.sDay && dd <= sp.eDay) { if (colStart === -1) colStart = d; colEnd = d; }
-            }
-            if (colStart === -1) return;
-            var bar = document.createElement('div');
-            bar.className = 'multi-bar ec' + (sp.ev.color || '0');
-            bar.style.gridColumn = (colStart + 1) + ' / ' + (colEnd + 2);
-            bar.style.gridRow = String(laneMap[sp.lane]);
-            var isS = sp.sDay >= wStart, isE = sp.eDay <= wEnd;
-            if (isS) bar.classList.add('start');
-            if (isE) bar.classList.add('end');
-            bar.textContent = sp.ev.title || '(無題)';
-            bar.title = sp.ev.title + (sp.ev.location ? ' — ' + sp.ev.location : '');
-            (function (ev) { bar.addEventListener('click', function (e) { e.stopPropagation(); openEdit(ev); }); })(sp.ev);
-            ml.appendChild(bar);
-          });
-          weekRow.appendChild(ml);
-        }
-
-        // Day cells
-        var wd = document.createElement('div');
-        wd.className = 'week-days';
+        // Layer 0: Day backgrounds (span all rows in each column)
         for (var d = 0; d < 7; d++) {
           var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
           var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk;
-          var cell = document.createElement('div');
-          cell.className = 'day-cell' + (out ? ' outside' : '') + (isT ? ' today' : '');
+          var bg = document.createElement('div');
+          bg.className = 'day-bg' + (out ? ' outside' : '') + (isT ? ' today' : '');
+          bg.style.gridColumn = String(d + 1);
+          bg.style.gridRow = '1 / -1';
           (function (date, isOut) {
-            cell.addEventListener('click', function (e) {
-              if (isOut) return;
-              if (e.target.classList.contains('ev-pill') || e.target.closest('.ev-pill')) return;
-              if (e.target.classList.contains('ev-dot')) return;
-              openCreate(date);
-            });
+            bg.addEventListener('click', function () { if (!isOut) openCreate(date); });
           })(new Date(cd), out);
-          var num = document.createElement('div');
-          num.className = 'day-num' + (d === 5 ? ' sat' : '') + (d === 6 ? ' sun' : '');
-          num.textContent = cd.getDate(); cell.appendChild(num);
+          weekRow.appendChild(bg);
+        }
 
+        // Layer 1: Day numbers (row 1)
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate(), isT = dk === tk;
+          var num = document.createElement('div');
+          num.className = 'day-num' + (d === 5 ? ' sat' : '') + (d === 6 ? ' sun' : '') + (isT ? ' today-num' : '') + (out ? ' outside' : '');
+          num.style.gridColumn = String(d + 1);
+          num.style.gridRow = '1';
+          num.textContent = cd.getDate();
+          weekRow.appendChild(num);
+        }
+
+        // Layer 2: Multi-day bars (rows 2..laneCount+1)
+        visSpans.forEach(function (sp) {
+          var colStart = -1, colEnd = -1;
+          for (var d = 0; d < 7; d++) {
+            var dd = new Date(wDates[d].getFullYear(), wDates[d].getMonth(), wDates[d].getDate());
+            if (dd >= sp.sDay && dd <= sp.eDay) { if (colStart === -1) colStart = d; colEnd = d; }
+          }
+          if (colStart === -1) return;
+          var bar = document.createElement('div');
+          bar.className = 'multi-bar ec' + (sp.ev.color || '0');
+          bar.style.gridColumn = (colStart + 1) + ' / ' + (colEnd + 2);
+          bar.style.gridRow = String(laneMap[sp.lane] + 2);
+          var isS = sp.sDay >= wStart, isE = sp.eDay <= wEnd;
+          if (isS) bar.classList.add('start');
+          if (isE) bar.classList.add('end');
+          bar.textContent = sp.ev.title || '(無題)';
+          bar.title = sp.ev.title + (sp.ev.location ? ' — ' + sp.ev.location : '');
+          (function (ev) { bar.addEventListener('click', function (e) { e.stopPropagation(); openEdit(ev); }); })(sp.ev);
+          weekRow.appendChild(bar);
+        });
+
+        // Layer 3: Single-day event containers (last row)
+        var evRowNum = laneCount + 2;
+        for (var d = 0; d < 7; d++) {
+          var cd = wDates[d], dn = w * 7 + d - startOff + 1, out = dn < 1 || dn > dim;
+          var dk = cd.getFullYear() + '-' + cd.getMonth() + '-' + cd.getDate();
           var dayEvs = (singleMap[dk] || []).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
-          if (dayEvs.length > 0) {
+          if (dayEvs.length > 0 && !out) {
+            var evc = document.createElement('div');
+            evc.className = 'day-events';
+            evc.style.gridColumn = String(d + 1);
+            evc.style.gridRow = String(evRowNum);
             var dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
             if (dm > 0) {
-              var cont = document.createElement('div'); cont.className = 'ev-list';
               dayEvs.slice(0, dm).forEach(function (ev) {
                 var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
                 var st = new Date(ev.start);
@@ -1471,10 +1477,9 @@
                 pill.appendChild(t);
                 pill.appendChild(document.createTextNode(ev.title || '(無題)'));
                 (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
-                cont.appendChild(pill);
+                evc.appendChild(pill);
               });
-              if (dayEvs.length > dm) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (dayEvs.length - dm) + ' 件'; cont.appendChild(m); }
-              cell.appendChild(cont);
+              if (dayEvs.length > dm) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (dayEvs.length - dm) + ' 件'; evc.appendChild(m); }
             }
             var dots = document.createElement('div'); dots.className = 'ev-dots';
             dayEvs.slice(0, 5).forEach(function (ev) {
@@ -1482,11 +1487,10 @@
               (function (d) { dot.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
               dots.appendChild(dot);
             });
-            cell.appendChild(dots);
+            evc.appendChild(dots);
+            weekRow.appendChild(evc);
           }
-          wd.appendChild(cell);
         }
-        weekRow.appendChild(wd);
         grid.appendChild(weekRow);
       }
     }
@@ -1519,6 +1523,12 @@
       var sel = document.getElementById('fCalendar');
       sel.innerHTML = '';
       var writable = calendarList.filter(function (c) { return c.accessRole === 'owner' || c.accessRole === 'writer'; });
+      if (writable.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = 'primary'; opt.textContent = 'メインカレンダー';
+        sel.appendChild(opt);
+        return;
+      }
       writable.forEach(function (c) {
         var opt = document.createElement('option');
         opt.value = c.id; opt.textContent = c.summary;
@@ -1645,7 +1655,12 @@
           calendarList.forEach(function (c) { enabledCalendars[c.id] = true; });
         }
         renderCalPanel();
-      }).catch(function () { enabledCalendars = { primary: true }; });
+      }).catch(function (e) {
+        calendarList = [{ id: 'primary', summary: 'メインカレンダー', colorId: '1', bgColor: '#4b7cf3', accessRole: 'owner', primary: true }];
+        enabledCalendars = { primary: true };
+        renderCalPanel();
+        toast('カレンダーリスト取得失敗: ' + (e.message || e), true);
+      });
     }
 
     function renderCalPanel() {
