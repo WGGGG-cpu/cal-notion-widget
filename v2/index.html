@@ -1628,7 +1628,7 @@
         sp.lane = assigned;
       });
 
-      var maxLanes = cw < 380 ? 2 : 5;
+      var maxLanes = 5;
 
       // Build 6 week rows — unified grid: day-bg + day-num + multi-bars + day-events
       for (var w = 0; w < 6; w++) {
@@ -1713,7 +1713,7 @@
             evc.className = 'day-events';
             evc.style.gridColumn = String(d + 1);
             evc.style.gridRow = String(evRowNum);
-            var dm = cw < 380 ? 0 : (cw < 500 ? 2 : MAX_EV);
+            var dm = MAX_EV;
             if (dm > 0) {
               dayEvs.slice(0, dm).forEach(function (ev) {
                 var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
