@@ -1189,7 +1189,7 @@
     // ╚═══════════════════════════════════════════════╝
     var CLIENT_ID = '864100893514-c5iggvkc1vlbk9g54mv65j5cqrsi77sn.apps.googleusercontent.com';
 
-    var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+    var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
     var API = 'https://www.googleapis.com/calendar/v3';
     var MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
     var DOW = ['月', '火', '水', '木', '金', '土', '日'];
@@ -1214,7 +1214,22 @@
         callback: onToken,
       });
       var t = sessionStorage.getItem('cal_token');
-      if (t) { accessToken = t; onLoggedIn(); }
+      if (t) {
+        accessToken = t;
+        // Verify token still works by checking tokeninfo
+        fetch('https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=' + encodeURIComponent(t))
+          .then(function (r) { return r.json(); })
+          .then(function (info) {
+            if (info.error_description || !info.scope || info.scope.indexOf('calendar') === -1) {
+              sessionStorage.removeItem('cal_token');
+              accessToken = null;
+              toast('セッション切れ。再ログインしてください。', true);
+            } else {
+              onLoggedIn();
+            }
+          })
+          .catch(function () { onLoggedIn(); });
+      }
     }
 
     function doLogin() {
@@ -1224,6 +1239,12 @@
 
     function onToken(resp) {
       if (resp.error) { toast('ログイン失敗: ' + resp.error, true); return; }
+      // Check if calendar scope was granted
+      var granted = resp.scope || '';
+      if (granted.indexOf('calendar') === -1) {
+        toast('カレンダーへのアクセスが許可されていません。全ての権限を許可してください。', true);
+        return;
+      }
       accessToken = resp.access_token;
       sessionStorage.setItem('cal_token', accessToken);
       onLoggedIn();
