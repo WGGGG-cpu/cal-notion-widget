@@ -1210,7 +1210,7 @@
     // ║  ★ 設定 ★                                     ║
     // ╚═══════════════════════════════════════════════╝
     var CLIENT_ID = '864100893514-c5iggvkc1vlbk9g54mv65j5cqrsi77sn.apps.googleusercontent.com';
-    var GAS_URL = 'https://script.google.com/macros/s/AKfycbwkuBCpxQXp9iT0l4O6_kvvD4cYX3X4IqBx9rxEsTCr-t6ly75HRpqdsJ_jpmVGwq5u/exec'; // ★ GASデプロイURLをここに設定（例: https://script.google.com/macros/s/XXXXX/exec）
+    var GAS_URL = 'https://script.google.com/macros/s/AKfycbwkuBCpxQXp9iT0l4O6_kvvD4cYX3X4IqBx9rxEsTCr-t6ly75HRpqdsJ_jpmVGwq5u/exec';
 
     var SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
     var API = 'https://www.googleapis.com/calendar/v3';
@@ -1265,25 +1265,53 @@
       tokenExpiry = 0; userEmail = '';
     }
 
-    // Check URL hash for OAuth redirect/callback token
+    // Check URL for OAuth redirect token (hash) or auth code (query)
     function checkRedirectToken() {
+      // Check hash for access_token (implicit flow)
       var hash = location.hash;
-      if (!hash || hash.indexOf('access_token=') === -1) return false;
-      var params = {};
-      hash.substring(1).split('&').forEach(function (p) {
-        var kv = p.split('=');
-        params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
-      });
-      if (params.access_token) {
-        accessToken = params.access_token;
-        var sc = params.scope || '';
-        var em = params.email || '';
-        hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
-        saveToken(accessToken, sc, parseInt(params.expires_in) || 3600, em);
+      if (hash && hash.indexOf('access_token=') !== -1) {
+        var params = {};
+        hash.substring(1).split('&').forEach(function (p) {
+          var kv = p.split('=');
+          params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+        });
+        if (params.access_token) {
+          accessToken = params.access_token;
+          var sc = params.scope || '';
+          hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
+          saveToken(accessToken, sc, parseInt(params.expires_in) || 3600, params.email || '');
+          history.replaceState(null, '', location.pathname);
+          return true;
+        }
+      }
+      // Check query for authorization code (code flow via GAS)
+      var urlParams = new URLSearchParams(location.search);
+      var code = urlParams.get('code');
+      if (code && GAS_URL) {
         history.replaceState(null, '', location.pathname);
-        return true;
+        return exchangeCodeViaGAS(code);
       }
       return false;
+    }
+
+    function exchangeCodeViaGAS(code) {
+      var url = GAS_URL + '?action=exchange'
+        + '&code=' + encodeURIComponent(code)
+        + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI);
+      document.getElementById('loginScreen').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#999;font-size:16px;">認証処理中...</div>';
+      fetch(url, { redirect: 'follow' })
+        .then(function (r) { return r.text(); })
+        .then(function (txt) {
+          var data; try { data = JSON.parse(txt); } catch (e) { throw new Error('GAS応答解析失敗'); }
+          if (data.error) throw new Error(data.error);
+          accessToken = data.access_token;
+          userEmail = data.email || '';
+          hasFullCalScope = true;
+          saveToken(accessToken, 'https://www.googleapis.com/auth/calendar', data.expires_in || 3600, userEmail);
+          onLoggedIn();
+        })
+        .catch(function (e) { toast('認証失敗: ' + e.message, true); location.href = location.pathname; });
+      return 'async';
     }
 
     function buildAuthUrl() {
@@ -1291,7 +1319,7 @@
       if (GAS_URL) {
         return 'https://accounts.google.com/o/oauth2/v2/auth'
           + '?client_id=' + encodeURIComponent(CLIENT_ID)
-          + '&redirect_uri=' + encodeURIComponent(GAS_URL)
+          + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
           + '&response_type=code'
           + '&scope=' + encodeURIComponent(SCOPES)
           + '&access_type=offline'
@@ -1309,6 +1337,7 @@
 
     function initGIS() {
       var redir = checkRedirectToken();
+      if (redir === 'async') return; // Code exchange in progress
       if (redir === true) { onLoggedIn(); return; }
 
       // Check saved token
