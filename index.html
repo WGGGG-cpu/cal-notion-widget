@@ -400,6 +400,13 @@
       min-height: 0;
     }
 
+    .more-ev {
+      cursor: pointer;
+      pointer-events: auto;
+      position: relative;
+      z-index: 3;
+    }
+
     .more-ev:hover {
       color: var(--accent);
     }
@@ -1624,24 +1631,11 @@
               });
               if (dayEvs.length > dm) {
                 var restEvs = dayEvs.slice(dm);
-                var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + restEvs.length + ' 件'; m.style.cursor = 'pointer';
-                (function (container, rest, moreEl) {
-                  moreEl.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    moreEl.remove();
-                    rest.forEach(function (ev) {
-                      var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
-                      if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
-                      var st = new Date(ev.start);
-                      var t = document.createElement('span'); t.className = 'ev-time';
-                      t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
-                      pill.appendChild(t);
-                      pill.appendChild(document.createTextNode(ev.title || '(無題)'));
-                      (function (d) { pill.addEventListener('click', function (e2) { e2.stopPropagation(); openEdit(d); }); })(ev);
-                      container.appendChild(pill);
-                    });
-                  });
-                })(evc, restEvs, m);
+                var moreId = 'more-' + w + '-' + d;
+                var m = document.createElement('div'); m.className = 'more-ev'; m.id = moreId;
+                m.textContent = '他 ' + restEvs.length + ' 件';
+                m.setAttribute('data-rest', JSON.stringify(restEvs.map(function (ev) { return { color: ev.color || '0', bgColor: ev.bgColor || '', start: ev.start, title: ev.title, id: ev.id, calendarId: ev.calendarId, end: ev.end, allDay: ev.allDay, location: ev.location, description: ev.description, readOnly: ev.readOnly }; })));
+                m.setAttribute('onclick', 'expandMore(this,event)');
                 evc.appendChild(m);
               }
             }
@@ -1805,6 +1799,24 @@
     // ════════════════════
     //  HELPERS
     // ════════════════════
+    function expandMore(el, e) {
+      e.stopPropagation();
+      var container = el.parentNode;
+      var rest = JSON.parse(el.getAttribute('data-rest'));
+      el.remove();
+      rest.forEach(function (ev) {
+        var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+        if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
+        var st = new Date(ev.start);
+        var t = document.createElement('span'); t.className = 'ev-time';
+        t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
+        pill.appendChild(t);
+        pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+        pill.setAttribute('onclick', 'event.stopPropagation(); openEdit(' + JSON.stringify(ev).replace(/'/g, "\\'") + ')');
+        container.appendChild(pill);
+      });
+    }
+
     function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
     function fmtDT(d) { return fmtDate(d) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function toast(msg, isErr) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (isErr ? ' error' : ''); setTimeout(function () { t.className = 'toast'; }, 2500); }
