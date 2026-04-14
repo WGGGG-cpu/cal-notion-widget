@@ -1231,22 +1231,29 @@
     var hasFullCalScope = false;
     var REDIRECT_URI = location.origin + location.pathname;
     var inIframe = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+    var refreshTimer = null;
+    var tokenExpiry = 0;
 
-    function saveToken(token, scope) {
-      try { localStorage.setItem('cal_token', token); localStorage.setItem('cal_scope', scope); } catch (e) { }
-      try { sessionStorage.setItem('cal_token', token); sessionStorage.setItem('cal_scope', scope); } catch (e) { }
+    function saveToken(token, scope, expiresIn) {
+      var exp = expiresIn ? Date.now() + expiresIn * 1000 : 0;
+      tokenExpiry = exp;
+      try { localStorage.setItem('cal_token', token); localStorage.setItem('cal_scope', scope); localStorage.setItem('cal_expiry', String(exp)); } catch (e) { }
+      try { sessionStorage.setItem('cal_token', token); sessionStorage.setItem('cal_scope', scope); sessionStorage.setItem('cal_expiry', String(exp)); } catch (e) { }
     }
 
     function loadToken() {
-      var t = null, s = '';
-      try { t = sessionStorage.getItem('cal_token'); s = sessionStorage.getItem('cal_scope') || ''; } catch (e) { }
-      if (!t) { try { t = localStorage.getItem('cal_token'); s = localStorage.getItem('cal_scope') || ''; } catch (e) { } }
+      var t = null, s = '', exp = 0;
+      try { t = sessionStorage.getItem('cal_token'); s = sessionStorage.getItem('cal_scope') || ''; exp = parseInt(sessionStorage.getItem('cal_expiry')) || 0; } catch (e) { }
+      if (!t) { try { t = localStorage.getItem('cal_token'); s = localStorage.getItem('cal_scope') || ''; exp = parseInt(localStorage.getItem('cal_expiry')) || 0; } catch (e) { } }
+      if (t && exp && exp < Date.now()) { clearToken(); return null; }
+      if (t) tokenExpiry = exp;
       return t ? { token: t, scope: s } : null;
     }
 
     function clearToken() {
-      try { localStorage.removeItem('cal_token'); localStorage.removeItem('cal_scope'); } catch (e) { }
-      try { sessionStorage.removeItem('cal_token'); sessionStorage.removeItem('cal_scope'); } catch (e) { }
+      try { localStorage.removeItem('cal_token'); localStorage.removeItem('cal_scope'); localStorage.removeItem('cal_expiry'); } catch (e) { }
+      try { sessionStorage.removeItem('cal_token'); sessionStorage.removeItem('cal_scope'); sessionStorage.removeItem('cal_expiry'); } catch (e) { }
+      tokenExpiry = 0;
     }
 
     // Check URL hash for OAuth redirect token
@@ -1262,7 +1269,7 @@
         accessToken = params.access_token;
         var sc = params.scope || '';
         hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
-        saveToken(accessToken, sc);
+        saveToken(accessToken, sc, parseInt(params.expires_in) || 3600);
         history.replaceState(null, '', location.pathname);
         // If opened as auth callback in a new tab, show token copy UI
         if (!inIframe) {
@@ -1362,7 +1369,7 @@
       if (!t) { toast('トークンを貼り付けてください', true); return; }
       accessToken = t;
       hasFullCalScope = true;
-      saveToken(t, 'https://www.googleapis.com/auth/calendar');
+      saveToken(t, 'https://www.googleapis.com/auth/calendar', 3600);
       onLoggedIn();
     }
 
@@ -1371,15 +1378,31 @@
       accessToken = resp.access_token;
       var granted = resp.scope || '';
       hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
-      saveToken(accessToken, granted);
+      saveToken(accessToken, granted, resp.expires_in || 3600);
+      scheduleRefresh();
       onLoggedIn();
+    }
+
+    function scheduleRefresh() {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (!tokenExpiry) return;
+      var ms = tokenExpiry - Date.now() - 300000; // 5分前にリフレッシュ
+      if (ms < 10000) ms = 10000;
+      refreshTimer = setTimeout(function () {
+        if (tokenClient) {
+          tokenClient.requestAccessToken({ prompt: '' });
+        } else {
+          toast('セッション切れ。再ログインしてください。', true);
+          doLogout();
+        }
+      }, ms);
     }
 
     function onLoggedIn() {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('widget').style.display = 'flex';
-      // Show copy button when in browser (not iframe) — for Notion app users
       if (!inIframe) document.getElementById('btnCopyToken').style.display = '';
+      scheduleRefresh();
       fetchUser();
       curYear = new Date().getFullYear();
       curMonth = new Date().getMonth();
@@ -1402,7 +1425,25 @@
       opts = opts || {};
       opts.headers = Object.assign({ 'Authorization': 'Bearer ' + accessToken }, opts.headers || {});
       return fetch(url, opts).then(function (r) {
-        if (r.status === 401) { toast('セッション切れ。再ログインしてください。', true); doLogout(); throw new Error('401'); }
+        if (r.status === 401) {
+          // Try silent refresh if GIS is available
+          if (tokenClient) {
+            return new Promise(function (resolve, reject) {
+              var origCb = tokenClient._callback;
+              tokenClient.callback = function (resp) {
+                tokenClient.callback = origCb || onToken;
+                if (resp.error) { toast('セッション切れ。再ログインしてください。', true); doLogout(); reject(new Error('401')); return; }
+                accessToken = resp.access_token;
+                saveToken(accessToken, resp.scope || '', resp.expires_in || 3600);
+                scheduleRefresh();
+                opts.headers['Authorization'] = 'Bearer ' + accessToken;
+                resolve(fetch(url, opts).then(function (r2) { if (r2.status === 204) return null; return r2.json(); }));
+              };
+              tokenClient.requestAccessToken({ prompt: '' });
+            });
+          }
+          toast('セッション切れ。再ログインしてください。', true); doLogout(); throw new Error('401');
+        }
         if (r.status === 204) return null;
         return r.json().then(function (data) {
           if (!r.ok) {
