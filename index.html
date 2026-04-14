@@ -1775,7 +1775,7 @@
       var url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || 'primary') + '/events/' + encodeURIComponent(editingEvent.id);
       apiFetch(url, { method: 'DELETE' })
         .then(function () { btn.disabled = false; btn.textContent = '削除'; toast('予定を削除しました'); cache = {}; closeModal(); loadMonth(); })
-        .catch(function () { btn.disabled = false; btn.textContent = '削除'; toast('エラーが発生しました', true); });
+        .catch(function (e) { btn.disabled = false; btn.textContent = '削除'; toast('削除失敗: ' + e.message, true); });
     }
 
     // ════════════════════
