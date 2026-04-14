@@ -1209,17 +1209,42 @@
     //  AUTH (client-only)
     // ════════════════════
     var hasFullCalScope = false;
-    var loginAttempt = 0;
+    var REDIRECT_URI = location.origin + location.pathname;
+
+    // Check for OAuth redirect token in URL hash (fallback flow)
+    function checkRedirectToken() {
+      var hash = location.hash;
+      if (!hash || hash.indexOf('access_token=') === -1) return false;
+      var params = {};
+      hash.substring(1).split('&').forEach(function (p) {
+        var kv = p.split('=');
+        params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+      });
+      if (params.access_token) {
+        accessToken = params.access_token;
+        var sc = params.scope || '';
+        hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
+        sessionStorage.setItem('cal_token', accessToken);
+        sessionStorage.setItem('cal_scope', sc);
+        history.replaceState(null, '', location.pathname); // clean URL
+        return true;
+      }
+      return false;
+    }
 
     function initGIS() {
+      // If returning from redirect auth, skip GIS init and go straight to logged in
+      if (checkRedirectToken()) { onLoggedIn(); return; }
+
       if (typeof google === 'undefined' || !google.accounts) { setTimeout(initGIS, 200); return; }
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         include_granted_scopes: true,
         callback: onToken,
-        error_callback: function (err) {
-          toast('認証エラー: ' + (err.message || err.type || 'ポップアップがブロックされました'), true);
+        error_callback: function () {
+          // Popup failed (blocked or Notion desktop) → fallback to redirect flow
+          doRedirectLogin();
         },
       });
       var t = sessionStorage.getItem('cal_token');
@@ -1232,11 +1257,23 @@
     }
 
     function doLogin() {
-      if (!tokenClient) { toast('認証の準備中...', true); return; }
-      loginAttempt++;
-      // First attempt: skip consent if already granted. Second+: force consent.
-      var p = loginAttempt <= 1 ? '' : 'consent';
-      tokenClient.requestAccessToken({ prompt: p });
+      if (tokenClient) {
+        // Try popup first
+        tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        // GIS not loaded → go direct to redirect
+        doRedirectLogin();
+      }
+    }
+
+    function doRedirectLogin() {
+      var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+        + '?client_id=' + encodeURIComponent(CLIENT_ID)
+        + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI)
+        + '&response_type=token'
+        + '&scope=' + encodeURIComponent(SCOPES)
+        + '&include_granted_scopes=true';
+      location.href = authUrl;
     }
 
     function onToken(resp) {
@@ -1246,7 +1283,6 @@
       hasFullCalScope = granted.indexOf('/auth/calendar ') !== -1 || granted.endsWith('/auth/calendar');
       sessionStorage.setItem('cal_token', accessToken);
       sessionStorage.setItem('cal_scope', granted);
-      loginAttempt = 0;
       onLoggedIn();
     }
 
