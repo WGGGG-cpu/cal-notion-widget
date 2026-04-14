@@ -397,8 +397,11 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
-      overflow: hidden;
       min-height: 0;
+    }
+
+    .more-ev:hover {
+      color: var(--accent);
     }
 
     .ev-list {
@@ -1619,7 +1622,28 @@
                 (function (d) { pill.addEventListener('click', function (e) { e.stopPropagation(); openEdit(d); }); })(ev);
                 evc.appendChild(pill);
               });
-              if (dayEvs.length > dm) { var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + (dayEvs.length - dm) + ' 件'; evc.appendChild(m); }
+              if (dayEvs.length > dm) {
+                var restEvs = dayEvs.slice(dm);
+                var m = document.createElement('div'); m.className = 'more-ev'; m.textContent = '他 ' + restEvs.length + ' 件'; m.style.cursor = 'pointer';
+                (function (container, rest, moreEl) {
+                  moreEl.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    moreEl.remove();
+                    rest.forEach(function (ev) {
+                      var pill = document.createElement('div'); pill.className = 'ev-pill ec' + (ev.color || '0');
+                      if (ev.bgColor) pill.style.backgroundColor = ev.bgColor;
+                      var st = new Date(ev.start);
+                      var t = document.createElement('span'); t.className = 'ev-time';
+                      t.textContent = st.getHours() + ':' + String(st.getMinutes()).padStart(2, '0');
+                      pill.appendChild(t);
+                      pill.appendChild(document.createTextNode(ev.title || '(無題)'));
+                      (function (d) { pill.addEventListener('click', function (e2) { e2.stopPropagation(); openEdit(d); }); })(ev);
+                      container.appendChild(pill);
+                    });
+                  });
+                })(evc, restEvs, m);
+                evc.appendChild(m);
+              }
             }
             var dots = document.createElement('div'); dots.className = 'ev-dots';
             dayEvs.slice(0, 5).forEach(function (ev) {
