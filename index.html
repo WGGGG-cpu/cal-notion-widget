@@ -1111,6 +1111,13 @@
       <div style="font-size:13px;color:#999;margin-bottom:10px;">ブラウザで認証を完了しましたか？</div>
       <button onclick="location.reload()" style="padding:10px 24px;border:1px solid #555;border-radius:8px;background:#272727;color:#e8e8e8;font-size:14px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;">🔄 リロードしてログイン</button>
     </div>
+    <div style="margin-top:20px;text-align:center;">
+      <div onclick="document.getElementById('tokenInput').style.display='flex'" style="font-size:12px;color:#666;cursor:pointer;text-decoration:underline;">トークンを貼り付け</div>
+      <div id="tokenInput" style="display:none;margin-top:10px;gap:8px;justify-content:center;align-items:center;">
+        <input type="text" id="fToken" placeholder="トークンを貼り付け" style="padding:8px 10px;border:1px solid #333;border-radius:6px;background:#212121;color:#e8e8e8;font-size:13px;width:180px;font-family:'Noto Sans JP',sans-serif;">
+        <button onclick="doTokenPaste()" style="padding:8px 14px;border:none;border-radius:6px;background:#4b7cf3;color:#fff;font-size:13px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">ログイン</button>
+      </div>
+    </div>
   </div>
 
   <div class="widget" id="widget" style="display:none">
@@ -1249,9 +1256,14 @@
         hasFullCalScope = sc.indexOf('/auth/calendar ') !== -1 || sc.endsWith('/auth/calendar');
         saveToken(accessToken, sc);
         history.replaceState(null, '', location.pathname);
-        // If opened as auth callback, show completion message
-        if (inIframe === false && document.referrer === '') {
-          document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#191919;color:#e8e8e8;font-family:sans-serif;font-size:20px;text-align:center;padding:20px;">✅ 認証完了！<br>このタブを閉じてNotionに戻り、<br>カレンダーをリロードしてください。</div>';
+        // If opened as auth callback in a new tab, show token copy UI
+        if (!inIframe) {
+          document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#191919;color:#e8e8e8;font-family:sans-serif;text-align:center;padding:20px;gap:16px;">'
+            + '<div style="font-size:24px;">✅ 認証完了！</div>'
+            + '<div style="font-size:14px;color:#999;">Notionアプリで使うには、下のボタンでトークンをコピーして<br>アプリ側の「トークンを貼り付け」に貼り付けてください。</div>'
+            + '<button onclick="navigator.clipboard.writeText(\'' + accessToken + '\');this.textContent=\'✅ コピーしました！\'" style="padding:12px 28px;border:1px solid #555;border-radius:8px;background:#4b7cf3;color:#fff;font-size:16px;cursor:pointer;">📋 トークンをコピー</button>'
+            + '<div style="font-size:12px;color:#666;margin-top:8px;">ブラウザで直接使う場合は自動ログインされています → <a href="' + location.pathname + '" style="color:#4b7cf3;">開く</a></div>'
+            + '</div>';
           return 'done';
         }
         return true;
@@ -1326,6 +1338,15 @@
           if (rl) rl.style.display = '';
         }, 2000);
       }
+    }
+
+    function doTokenPaste() {
+      var t = document.getElementById('fToken').value.trim();
+      if (!t) { toast('トークンを貼り付けてください', true); return; }
+      accessToken = t;
+      hasFullCalScope = false;
+      saveToken(t, '');
+      onLoggedIn();
     }
 
     function onToken(resp) {
