@@ -1211,7 +1211,7 @@
       { id: '5', bg: '#f0b232' }, { id: '6', bg: '#e67e22' }, { id: '7', bg: '#00b4d8' }, { id: '8', bg: '#888' }, { id: '11', bg: '#e84393' },
     ];
 
-    var curYear, curMonth, cache = {}, editingEvent = null, selectedColor = '1';
+    var curYear, curMonth, cache = {}, editingEvent = null;
     var accessToken = null, tokenClient = null;
     var calendarList = [], enabledCalendars = {};
 
@@ -1373,7 +1373,6 @@
       fetchUser();
       curYear = new Date().getFullYear();
       curMonth = new Date().getMonth();
-      buildColorPicker();
       fetchCalendarList().then(function () { loadMonth(); });
     }
 
@@ -1646,17 +1645,6 @@
     // ════════════════════
     //  COLOR PICKER
     // ════════════════════
-    function buildColorPicker() {
-      var cp = document.getElementById('colorPicker'); cp.innerHTML = '';
-      COLOR_MAP.forEach(function (c) {
-        var dot = document.createElement('div'); dot.className = 'color-dot' + (c.id === selectedColor ? ' active' : '');
-        dot.style.background = c.bg; dot.setAttribute('data-color', c.id);
-        dot.addEventListener('click', function () { selectedColor = c.id; document.querySelectorAll('.color-dot').forEach(function (d) { d.classList.remove('active'); }); dot.classList.add('active'); });
-        cp.appendChild(dot);
-      });
-    }
-    function setActiveColor(cid) { selectedColor = cid || '1'; document.querySelectorAll('.color-dot').forEach(function (d) { d.classList.toggle('active', d.getAttribute('data-color') === selectedColor); }); }
-
     // ════════════════════
     //  MODAL
     // ════════════════════
@@ -1684,7 +1672,7 @@
       document.getElementById('btnDelete').style.display = 'none';
       document.getElementById('btnSave').textContent = '作成';
       document.getElementById('fTitle').value = ''; document.getElementById('fLocation').value = ''; document.getElementById('fDesc').value = '';
-      document.getElementById('fAllDay').checked = false; toggleAllDayUI(false); setActiveColor('1');
+      document.getElementById('fAllDay').checked = false; toggleAllDayUI(false);
       buildCalendarSelect(null);
       document.getElementById('fCalendarField').style.display = '';
       var d = date || new Date(), ds = fmtDate(d);
@@ -1701,7 +1689,7 @@
       document.getElementById('btnSave').textContent = '更新';
       document.getElementById('fTitle').value = ev.title || ''; document.getElementById('fLocation').value = ev.location || '';
       document.getElementById('fDesc').value = ev.description || '';
-      document.getElementById('fAllDay').checked = ev.allDay; toggleAllDayUI(ev.allDay); setActiveColor(ev.color);
+      document.getElementById('fAllDay').checked = ev.allDay; toggleAllDayUI(ev.allDay);
       buildCalendarSelect(ev.calendarId);
       document.getElementById('fCalendarField').style.display = '';
       if (ev.allDay) { var s = new Date(ev.start), e = new Date(ev.end); e.setDate(e.getDate() - 1); document.getElementById('fStartDate').value = fmtDate(s); document.getElementById('fEndDate').value = fmtDate(e); }
