@@ -1711,7 +1711,7 @@
       else { document.getElementById('fStart').value = fmtDT(new Date(ev.start)); document.getElementById('fEnd').value = fmtDT(new Date(ev.end)); }
       document.getElementById('modalOverlay').classList.add('show');
     }
-    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); editingEvent = null; deleteConfirmed = false; }
     function toggleAllDay() { var cb = document.getElementById('fAllDay'); cb.checked = !cb.checked; toggleAllDayUI(cb.checked); }
     function toggleAllDayUI(v) { document.getElementById('dateTimeFields').style.display = v ? 'none' : ''; document.getElementById('allDayFields').style.display = v ? '' : 'none'; }
 
@@ -1774,10 +1774,19 @@
     // ════════════════════
     //  DELETE (client fetch)
     // ════════════════════
+    var deleteConfirmed = false;
     function doDelete() {
       if (!editingEvent) return;
-      if (!confirm('この予定を削除しますか？')) return;
-      var btn = document.getElementById('btnDelete'); btn.disabled = true; btn.textContent = '削除中...';
+      var btn = document.getElementById('btnDelete');
+      if (!deleteConfirmed) {
+        deleteConfirmed = true;
+        btn.textContent = '本当に削除？';
+        btn.style.opacity = '1';
+        setTimeout(function () { if (deleteConfirmed) { deleteConfirmed = false; btn.textContent = '削除'; } }, 3000);
+        return;
+      }
+      deleteConfirmed = false;
+      btn.disabled = true; btn.textContent = '削除中...';
       var url = API + '/calendars/' + encodeURIComponent(editingEvent.calendarId || 'primary') + '/events/' + encodeURIComponent(editingEvent.id);
       apiFetch(url, { method: 'DELETE' })
         .then(function () { btn.disabled = false; btn.textContent = '削除'; toast('予定を削除しました'); cache = {}; closeModal(); loadMonth(); })
